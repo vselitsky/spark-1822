@@ -2,6 +2,16 @@
 
 Configuration for the [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) workstation `spark-1822` (Ubuntu, aarch64, GB10 GPU).
 
+## Contents
+
+- [Layout](#layout)
+- [Components](#components)
+- [Host](#host)
+- [One-time setup](#one-time-setup)
+- [Deploy workflow](#deploy-workflow)
+- [Conventions](#conventions)
+- [Changelog](#changelog)
+
 ## Layout
 
 ```
