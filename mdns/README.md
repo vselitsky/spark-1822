@@ -11,6 +11,7 @@ mdns/
 ├── sparky-mdns-alias            # bash script — publishes one alias
 ├── sparky-mdns-alias@.service   # systemd template unit
 ├── install.sh                   # installer (root via sudo)
+├── uninstall.sh                 # uninstaller — disables all instances, removes files
 └── README.md
 ```
 
@@ -49,6 +50,17 @@ avahi-resolve -n netdata.spark-1822.local
 ```bash
 sudo systemctl disable --now 'sparky-mdns-alias@netdata.spark-1822.local'
 ```
+
+## Uninstall everything
+
+Stops + disables every active alias instance, removes the script and unit file, reloads systemd:
+
+```bash
+cd /opt/mdns
+./uninstall.sh
+```
+
+The repo files under `/opt/mdns/` stay in place so a future `./install.sh` brings everything back.
 
 ## How it works
 
