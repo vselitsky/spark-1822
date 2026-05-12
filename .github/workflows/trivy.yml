@@ -24,13 +24,18 @@ jobs:
       open_webui_tag: ${{ steps.tags.outputs.open_webui_tag }}
       caddy_tag: ${{ steps.tags.outputs.caddy_tag }}
       netdata_tag: ${{ steps.tags.outputs.netdata_tag }}
+      llamacpp_tag: ${{ steps.tags.outputs.llamacpp_tag }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - id: tags
         run: |
           set -euo pipefail
-          tag_re='^[A-Za-z0-9._-]+$'
+          # Allow plain tags ([0-9A-Za-z._-]+) and OCI digest pins of the form
+          # tag@sha256:hex. The shell-meaningful characters ($, ;, `, \, &, |,
+          # (, ), space, newline, quotes, etc.) are excluded so a malicious
+          # PR can't slip command injection through .env.example.
+          tag_re='^[A-Za-z0-9._@:+-]+$'
           extract() {
             local file="$1" key="$2" val
             val=$(grep -E "^${key}=" "$file" | head -n1 | cut -d= -f2-)
@@ -44,10 +49,12 @@ jobs:
           open_webui_tag=$(extract open-webui/.env.example OPEN_WEBUI_TAG)
           caddy_tag=$(extract caddy/.env.example CADDY_TAG)
           netdata_tag=$(extract netdata/.env.example NETDATA_TAG)
+          llamacpp_tag=$(extract llama-cpp/.env.example LLAMACPP_TAG)
           echo "ollama_tag=${ollama_tag}" >> "$GITHUB_OUTPUT"
           echo "open_webui_tag=${open_webui_tag}" >> "$GITHUB_OUTPUT"
           echo "caddy_tag=${caddy_tag}" >> "$GITHUB_OUTPUT"
           echo "netdata_tag=${netdata_tag}" >> "$GITHUB_OUTPUT"
+          echo "llamacpp_tag=${llamacpp_tag}" >> "$GITHUB_OUTPUT"
 
   image-scan:
     needs: extract-tags
@@ -67,6 +74,8 @@ jobs:
             image: caddy:${{ needs.extract-tags.outputs.caddy_tag }}
           - name: netdata
             image: netdata/netdata:${{ needs.extract-tags.outputs.netdata_tag }}
+          - name: llama-cpp
+            image: ghcr.io/ggml-org/llama.cpp:${{ needs.extract-tags.outputs.llamacpp_tag }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 

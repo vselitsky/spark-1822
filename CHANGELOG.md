@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 - Dedicated `.github/workflows/trivy.md` with the full Trivy workflow doc; `.github/README.md` is now a thin workflow index.
 - Direct Caddy-fronted access to the Ollama API at `https://ollama.${CADDY_DOMAIN}` (no auth, LAN-trust). The `ollama` container joins the shared `web` network in addition to `internal`. New `Caddyfile.d/ollama.caddyfile` + mDNS alias.
 - `mdns/Makefile` with `install` / `uninstall` / `list` / `help` targets. Replaces the `install.sh` / `uninstall.sh` pair.
+- **`llama-cpp/`** stack: GPU-accelerated [llama.cpp](https://github.com/ggml-org/llama.cpp) server (image `ghcr.io/ggml-org/llama.cpp:server-cuda`, pinned by digest). aarch64+CUDA confirmed on GB10 (compute capability 12.1, 124 GiB VRAM). OpenAI-compatible API + web UI fronted by Caddy at `https://llama.${CADDY_DOMAIN}`. Default model is `gpt-oss-safeguard-120b` via HuggingFace auto-download — workaround for the Ollama pull bug (ollama/ollama#16121). Caddyfile.d snippet + mDNS alias included.
+- Trivy: relaxed `extract-tags` regex to allow `@:` so digest-pinned tags (`server-cuda@sha256:...`) are accepted; added `llama-cpp` to the image-scan matrix.
 
 ### Changed
 

@@ -1,0 +1,55 @@
+name: llama-cpp
+
+services:
+  llama-cpp:
+    image: ghcr.io/ggml-org/llama.cpp:${LLAMACPP_TAG:?LLAMACPP_TAG must be set in .env}
+    container_name: llama-cpp
+    restart: unless-stopped
+    networks:
+      - web
+    volumes:
+      - llama-cpp-cache:/root/.cache/llama.cpp
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+    command:
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "--model-url"
+      - "${MODEL_URL:?MODEL_URL must be set in .env}"
+      - "--ctx-size"
+      - "${CTX_SIZE:-8192}"
+      - "--n-gpu-layers"
+      - "${N_GPU_LAYERS:-999}"
+      - "--alias"
+      - "${MODEL_ALIAS:-llama-cpp}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 600s   # first run downloads the model from HF — can be many minutes
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  web:
+    external: true
+    name: web
+
+volumes:
+  llama-cpp-cache:
+    name: llama-cpp-cache

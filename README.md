@@ -17,6 +17,7 @@ Configuration for the [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) workstation `s
 ```
 .
 ├── caddy/         # HTTPS reverse proxy (terminates TLS, fronts all apps)
+├── llama-cpp/     # llama.cpp server (GGUF, GPU on GB10 via CUDA)
 ├── mdns/          # systemd helper publishing subdomain mDNS aliases
 ├── netdata/       # Real-time host + container observability
 ├── open-webui/    # Open WebUI + Ollama (LLM chat UI)
@@ -32,6 +33,7 @@ Each component has its own `README.md` — start there for deploy / configure / 
 | Dir | What | Access |
 |---|---|---|
 | [`caddy/`](caddy/) | HTTPS reverse proxy, Caddy local CA | publishes `:80`/`:443` |
+| [`llama-cpp/`](llama-cpp/) | llama.cpp server (GGUF, OpenAI-compatible API + web UI) | `https://llama.spark-1822.local` |
 | [`mdns/`](mdns/) | Host systemd template that publishes `<sub>.spark-1822.local` mDNS aliases | host-level |
 | [`netdata/`](netdata/) | Real-time host + container telemetry | `https://netdata.spark-1822.local` |
 | [`open-webui/`](open-webui/) | Open WebUI + Ollama, GPU on Ollama only | `https://spark-1822.local` (UI), `https://ollama.spark-1822.local` (Ollama API) |
