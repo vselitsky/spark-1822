@@ -1,8 +1,6 @@
 # sparky
 
-Configuration for the NVIDIA DGX Spark workstation `spark-1822` (Ubuntu, aarch64, GB10 GPU).
-
-> Want one? [Buy the NVIDIA DGX Spark on Amazon](https://amzn.to/47ZeWqZ) (affiliate link).
+Configuration for the [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) workstation `spark-1822` (Ubuntu, aarch64, GB10 GPU).
 
 ## Layout
 
