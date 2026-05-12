@@ -79,7 +79,7 @@ See [`mdns/README.md`](mdns/README.md) for install and usage.
 
 ## netdata
 
-Real-time host + container monitoring with [Netdata](https://www.netdata.cloud/). Agent runs with `network_mode: host` + `pid: host`; UI is fronted by Caddy at `https://netdata.${CADDY_DOMAIN}` with HTTP basic auth.
+Real-time host + container monitoring with [Netdata](https://www.netdata.cloud/). Agent runs with `network_mode: host` + `pid: host`; UI is fronted by Caddy at `https://netdata.${CADDY_DOMAIN}` (no auth — Netdata has no local auth; LAN trust is assumed; claim with Netdata Cloud for SSO if you want auth).
 
 See [`netdata/README.md`](netdata/README.md) for deployment and basic-auth setup.
 

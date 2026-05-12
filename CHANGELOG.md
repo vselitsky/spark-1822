@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 - Split `caddy/Caddyfile` into per-service files under `caddy/Caddyfile.d/<name>.caddyfile`, loaded via `import`. Adding a new app is now a single file drop + reload.
 
+### Removed
+
+- HTTP basic auth in front of Netdata. The dashboard exposes read-only telemetry on a trusted LAN; one more password to manage was friction without meaningful security gain. Use Netdata Cloud (SSO/MFA) or an OAuth forward-auth proxy if you want real auth.
+
 ## [0.1.0] - 2026-05-12
 
 ### Added

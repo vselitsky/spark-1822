@@ -1,10 +1,10 @@
 # netdata
 
-Real-time observability agent for the host — CPU, memory, disks, network, every Docker container, plus systemd units and a long list of auto-detected applications. UI is fronted by Caddy at `https://netdata.${CADDY_DOMAIN}` with basic-auth.
+Real-time observability agent for the host — CPU, memory, disks, network, every Docker container, plus systemd units and a long list of auto-detected applications. UI is fronted by Caddy at `https://netdata.${CADDY_DOMAIN}`.
 
 ## Topology
 
-Netdata runs with `network_mode: host` and `pid: host` so it has full visibility into the host's processes, namespaces, and network interfaces. It listens on `0.0.0.0:19999`. The unauthenticated direct port is reachable on the LAN; the canonical, authenticated access path is `https://netdata.${CADDY_DOMAIN}` (via Caddy). Add a host firewall rule to block external `:19999` if you want stricter isolation.
+Netdata runs with `network_mode: host` and `pid: host` so it has full visibility into the host's processes, namespaces, and network interfaces. It listens on `0.0.0.0:19999` directly and is also reachable via HTTPS through Caddy. No authentication: the dashboard is read-only telemetry on a trusted LAN, and Netdata itself has no built-in local auth. If you need auth, claim the agent in [Netdata Cloud](https://www.netdata.cloud/) (free, supports SSO/MFA) or front it with an OAuth proxy.
 
 ## Files
 
@@ -24,23 +24,6 @@ cp .env.example .env
 #   NETDATA_HOSTNAME  — what netdata reports as host name
 #   DOCKER_GID        — host's docker-group GID (so netdata can read docker.sock)
 #                       getent group docker | cut -d: -f3
-```
-
-## Basic-auth credentials (Caddy)
-
-Netdata has no built-in auth, so Caddy gates access to `netdata.${CADDY_DOMAIN}` with HTTP basic auth. Generate the bcrypt hash and store it in `caddy/.env`:
-
-```bash
-# On the host:
-docker exec -it caddy caddy hash-password --plaintext 'YOUR_PASSWORD'
-# Copy the printed hash into caddy/.env as NETDATA_BASIC_AUTH_HASH=...
-docker compose -f /opt/caddy/docker-compose.yml up -d   # picks up new env
-```
-
-To rotate the password, repeat and reload Caddy:
-
-```bash
-docker compose -f /opt/caddy/docker-compose.yml exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
 ## Deploy
