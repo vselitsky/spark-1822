@@ -19,6 +19,7 @@ services:
       - "0.0.0.0:443:443/udp"   # HTTP/3 (QUIC)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.d:/etc/caddy/Caddyfile.d:ro
       - caddy-data:/data
       - caddy-config:/config
     healthcheck:

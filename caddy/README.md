@@ -8,11 +8,16 @@ Caddy is the only stack that publishes host ports (`80`, `443`, plus `443/udp` f
 
 ```
 caddy/
-├── docker-compose.yml   # caddy service definition, joins external `web` network
-├── Caddyfile            # site/route config (uses {$CADDY_DOMAIN})
-├── .env.example         # committed; copy to .env and customize
-└── .env                 # not committed (gitignored)
+├── docker-compose.yml         # caddy service, joins external `web` network
+├── Caddyfile                  # global options + snippets + import directive
+├── Caddyfile.d/               # one file per service
+│   ├── open-webui.caddyfile
+│   └── netdata.caddyfile
+├── .env.example               # committed; copy to .env and customize
+└── .env                       # not committed (gitignored)
 ```
+
+Each service has its own `Caddyfile.d/<service>.caddyfile`. The top-level `Caddyfile` defines global options and shared snippets (e.g. `common_headers`, `default_log`) and ends with `import Caddyfile.d/*.caddyfile`. To add a service: drop a new `<name>.caddyfile` into `Caddyfile.d/` and reload Caddy — no other edits needed.
 
 ## Configure
 
@@ -64,11 +69,15 @@ The root certificate is host-specific (gitignored as `*.crt`) and rotates only i
 ## Add a new app
 
 1. Run the new app's stack with a service on the `web` network (no host port publish needed).
-2. Add a site block to `Caddyfile`:
+2. Create `Caddyfile.d/<name>.caddyfile`:
 
    ```caddyfile
    myapp.{$CADDY_DOMAIN} {
        tls internal
+       encode zstd gzip
+       import common_headers
+       import default_log
+
        reverse_proxy myapp:8080
    }
    ```

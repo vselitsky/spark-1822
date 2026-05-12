@@ -1,0 +1,15 @@
+netdata.{$CADDY_DOMAIN} {
+	tls internal
+
+	encode zstd gzip
+	import common_headers
+	import default_log
+
+	basic_auth {
+		{$NETDATA_BASIC_AUTH_USER} {$NETDATA_BASIC_AUTH_HASH}
+	}
+
+	reverse_proxy host.docker.internal:19999 {
+		flush_interval -1
+	}
+}

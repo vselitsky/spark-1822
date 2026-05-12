@@ -1,9 +1,10 @@
 {
 	# Local-CA mode: Caddy issues its own root + leaf certs.
 	# Install /data/caddy/pki/authorities/local/root.crt on each client.
-	# admin API is bound to 127.0.0.1:2019 inside the container by default.
+	# Admin API is bound to 127.0.0.1:2019 inside the container by default.
 }
 
+# Snippets shared by every site. Reference with `import common_headers` etc.
 (common_headers) {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -13,39 +14,13 @@
 	}
 }
 
-{$CADDY_DOMAIN} {
-	tls internal
-
-	encode zstd gzip
-	import common_headers
-
-	reverse_proxy open-webui:8080 {
-		# Open WebUI streams chat tokens; disable proxy buffering effects.
-		flush_interval -1
-	}
-
+(default_log) {
 	log {
 		output stdout
 		format console
 	}
 }
 
-netdata.{$CADDY_DOMAIN} {
-	tls internal
-
-	encode zstd gzip
-	import common_headers
-
-	basic_auth {
-		{$NETDATA_BASIC_AUTH_USER} {$NETDATA_BASIC_AUTH_HASH}
-	}
-
-	reverse_proxy host.docker.internal:19999 {
-		flush_interval -1
-	}
-
-	log {
-		output stdout
-		format console
-	}
-}
+# One file per service. Drop a new <name>.caddyfile here, reload Caddy,
+# and the new site is live.
+import Caddyfile.d/*.caddyfile
