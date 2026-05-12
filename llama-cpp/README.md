@@ -6,15 +6,24 @@ Set up as the workaround for Ollama not being able to pull `gpt-oss-safeguard:12
 
 ## Topology
 
-`llama-cpp` runs as a single container on the shared `web` Docker network. It connects only to Caddy; no host port is published. The container downloads model files from HuggingFace on first start via the `-hf` flag and caches them in the `llama-cpp-cache` named volume across restarts.
+`llama-cpp` runs as a single container on the shared `web` Docker network. It connects only to Caddy; no host port is published. Three model sources are wired up read-only into the container so existing downloads can be reused:
+
+| In-container path | Source |
+|---|---|
+| `/root/.cache/llama.cpp/` | llama.cpp's own download cache (named volume `llama-cpp-cache`) |
+| `/ollama/models/blobs/sha256-<hex>` | Ollama-cached GGUF blobs (external volume `open-webui-ollama`, read-only) |
+| `/root/.cache/huggingface/hub/...` | HuggingFace CLI cache on the host, bind-mounted read-only |
+
+The entrypoint picks the model based on env vars: `MODEL_PATH` (a local file path inside the container) wins if set, otherwise it falls back to `MODEL_URL` (downloaded into `/root/.cache/llama.cpp/`).
 
 ## Files
 
 ```
 llama-cpp/
 ├── docker-compose.yml
+├── entrypoint.sh         # selects MODEL_PATH or MODEL_URL
 ├── .env.example
-└── .env                 # gitignored
+└── .env                  # gitignored
 ```
 
 ## Configure
@@ -67,13 +76,63 @@ Once healthy, the server is at `https://llama.${CADDY_DOMAIN}`:
 
 ## Changing the model
 
-Edit `MODEL_HF_REPO` / `MODEL_HF_FILE` / `MODEL_ALIAS` in `.env`, then:
+Edit `MODEL_PATH` (preferred) or `MODEL_URL` in `.env`, plus `MODEL_ALIAS`, then:
 
 ```bash
 docker compose up -d
 ```
 
-The cache volume preserves previously-downloaded files, so swapping back is fast.
+The cache volume preserves previously-downloaded files, so swapping back to a URL-pulled model is fast.
+
+### Use a model Ollama already has
+
+Ollama's volume is mounted at `/ollama:ro` inside the container. The GGUF for any pulled model is one of its blobs — specifically the layer with mediaType `application/vnd.ollama.image.model`. Find the blob path for a model:
+
+```bash
+docker run --rm -v open-webui-ollama:/data:ro -v ./tools:/tools:ro alpine sh -c '
+    apk add -q jq >/dev/null
+    jq -r ".layers[] | select(.mediaType==\"application/vnd.ollama.image.model\") | .digest" \
+        /data/models/manifests/registry.ollama.ai/library/MODEL/TAG \
+        | sed "s|sha256:|/ollama/models/blobs/sha256-|"
+'
+```
+
+For example, after `ollama pull gpt-oss-safeguard:20b`:
+
+```bash
+docker run --rm -v open-webui-ollama:/data:ro alpine sh -c '
+    apk add -q jq >/dev/null
+    jq -r ".layers[] | select(.mediaType==\"application/vnd.ollama.image.model\") | .digest" \
+        /data/models/manifests/registry.ollama.ai/library/gpt-oss-safeguard/20b \
+        | sed "s|sha256:|/ollama/models/blobs/sha256-|"
+'
+# → /ollama/models/blobs/sha256-c4016c9e54d0a9218b5911790579e58284a9ed57c48b7e87607125c6307f9da1
+```
+
+Set that path as `MODEL_PATH` in `.env`:
+
+```
+MODEL_PATH=/ollama/models/blobs/sha256-c4016c9e54d0a9218b5911790579e58284a9ed57c48b7e87607125c6307f9da1
+MODEL_ALIAS=gpt-oss-safeguard-20b
+```
+
+List Ollama-cached models with:
+
+```bash
+docker run --rm -v open-webui-ollama:/data:ro alpine \
+    find /data/models/manifests/registry.ollama.ai/library -mindepth 2 -type f \
+    -printf '%P\n'
+```
+
+### Use a model already downloaded by the HuggingFace CLI
+
+The host's `~/.cache/huggingface/` is mounted read-only at `/root/.cache/huggingface/`. Files downloaded via `huggingface-cli download <repo> <file>` or `hf download <repo> <file>` live at:
+
+```
+/root/.cache/huggingface/hub/models--<org>--<repo>/snapshots/<rev>/<file>
+```
+
+Point `MODEL_PATH` at the actual file path inside that snapshots directory.
 
 ## Upgrade
 

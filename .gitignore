@@ -19,3 +19,9 @@ docker-compose.override.yml
 
 # Claude Code local state
 .claude/
+
+# Vendor / host-shipped trees we don't manage in this repo
+containerd
+MicronTechnology
+nvidia
+NVIDIA AI Workbench

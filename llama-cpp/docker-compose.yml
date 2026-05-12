@@ -8,22 +8,26 @@ services:
     networks:
       - web
     volumes:
+      # llama.cpp's own model cache (filled by --model-url).
       - llama-cpp-cache:/root/.cache/llama.cpp
+      # Reuse models already pulled by Ollama. Read-only.
+      # Blobs live at /ollama/models/blobs/sha256-<hex> (one per layer; the
+      # GGUF is the layer with mediaType `application/vnd.ollama.image.model`).
+      - ollama-models:/ollama:ro
+      # Reuse files already downloaded by the HuggingFace CLI on the host.
+      # Layout: hub/models--<org>--<repo>/snapshots/<rev>/<file>
+      - ${HF_CACHE_HOST:-/home/alexus/.cache/huggingface}:/root/.cache/huggingface:ro
+      # Launcher script picks MODEL_PATH or MODEL_URL.
+      - ./entrypoint.sh:/usr/local/bin/llama-cpp-entrypoint:ro
     environment:
       HF_TOKEN: ${HF_TOKEN:-}
-    command:
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "8080"
-      - "--model-url"
-      - "${MODEL_URL:?MODEL_URL must be set in .env}"
-      - "--ctx-size"
-      - "${CTX_SIZE:-8192}"
-      - "--n-gpu-layers"
-      - "${N_GPU_LAYERS:-999}"
-      - "--alias"
-      - "${MODEL_ALIAS:-llama-cpp}"
+      MODEL_PATH: ${MODEL_PATH:-}
+      MODEL_URL: ${MODEL_URL:-}
+      MODEL_ALIAS: ${MODEL_ALIAS:-llama-cpp}
+      CTX_SIZE: ${CTX_SIZE:-8192}
+      N_GPU_LAYERS: ${N_GPU_LAYERS:-999}
+    entrypoint: ["/usr/local/bin/llama-cpp-entrypoint"]
+    command: []
     deploy:
       resources:
         reservations:
@@ -36,7 +40,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
-      start_period: 600s   # first run downloads the model from HF — can be many minutes
+      start_period: 600s   # first --model-url run may need many minutes
     security_opt:
       - no-new-privileges:true
     logging:
@@ -53,3 +57,6 @@ networks:
 volumes:
   llama-cpp-cache:
     name: llama-cpp-cache
+  ollama-models:
+    external: true
+    name: open-webui-ollama
