@@ -1,0 +1,149 @@
+name: Trivy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Mondays 06:00 UTC — catches new CVEs against pinned images
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trivy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  extract-tags:
+    runs-on: ubuntu-latest
+    outputs:
+      ollama_tag: ${{ steps.tags.outputs.ollama_tag }}
+      open_webui_tag: ${{ steps.tags.outputs.open_webui_tag }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - id: tags
+        working-directory: open-webui
+        run: |
+          set -euo pipefail
+          tag_re='^[A-Za-z0-9._-]+$'
+          extract() {
+            local key="$1" val
+            val=$(grep -E "^${key}=" .env.example | head -n1 | cut -d= -f2-)
+            if [[ -z "$val" || ! "$val" =~ $tag_re ]]; then
+              echo "::error::Invalid or missing $key in open-webui/.env.example (got: '$val')" >&2
+              exit 1
+            fi
+            printf '%s' "$val"
+          }
+          ollama_tag=$(extract OLLAMA_TAG)
+          open_webui_tag=$(extract OPEN_WEBUI_TAG)
+          echo "ollama_tag=${ollama_tag}" >> "$GITHUB_OUTPUT"
+          echo "open_webui_tag=${open_webui_tag}" >> "$GITHUB_OUTPUT"
+
+  image-scan:
+    needs: extract-tags
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ollama
+            image: ollama/ollama:${{ needs.extract-tags.outputs.ollama_tag }}
+          - name: open-webui
+            image: ghcr.io/open-webui/open-webui:${{ needs.extract-tags.outputs.open_webui_tag }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Trivy image scan (SARIF, HIGH+CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: sarif
+          output: trivy-${{ matrix.name }}.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@8c78abb9b62512e3c45dea6559ffd924ed8549c8  # v3.28.0
+        with:
+          sarif_file: trivy-${{ matrix.name }}.sarif
+          category: trivy-${{ matrix.name }}
+
+      - name: Gate on CRITICAL (skip on schedule)
+        if: github.event_name != 'schedule'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: ${{ matrix.image }}
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  config-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Trivy IaC scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: open-webui
+          format: sarif
+          output: trivy-config.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '0'
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@8c78abb9b62512e3c45dea6559ffd924ed8549c8  # v3.28.0
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Trivy secret scan (SARIF)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: '.'
+          scanners: secret
+          format: sarif
+          output: trivy-secrets.sarif
+          exit-code: '0'
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@8c78abb9b62512e3c45dea6559ffd924ed8549c8  # v3.28.0
+        with:
+          sarif_file: trivy-secrets.sarif
+          category: trivy-secrets
+
+      - name: Gate on any secret (skip on schedule)
+        if: github.event_name != 'schedule'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: '.'
+          scanners: secret
+          format: table
+          exit-code: '1'

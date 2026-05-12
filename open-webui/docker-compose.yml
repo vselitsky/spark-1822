@@ -2,7 +2,7 @@ name: open-webui
 
 services:
   ollama:
-    image: ollama/ollama:0.23.2
+    image: ollama/ollama:${OLLAMA_TAG:?OLLAMA_TAG must be set in .env}
     container_name: ollama
     restart: unless-stopped
     volumes:
@@ -32,7 +32,7 @@ services:
         max-file: "3"
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.9.5
+    image: ghcr.io/open-webui/open-webui:${OPEN_WEBUI_TAG:?OPEN_WEBUI_TAG must be set in .env}
     container_name: open-webui
     restart: unless-stopped
     depends_on:

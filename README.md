@@ -80,5 +80,17 @@ docker volume rm open-webui open-webui-ollama   # destroys data and models
 ## Conventions
 
 - `.env` files contain secrets and are **never** committed (see `.gitignore`).
-- Image tags are pinned to specific versions — no `:latest`.
+- Image tags are pinned to specific versions in `.env` (single source of truth) — no `:latest`.
 - Services bind to the host network only via explicit `ports:` entries; everything else stays on the internal compose network.
+
+## CI: Trivy security scanning
+
+`.github/workflows/trivy.yml` runs on push to `main`, PRs, and a weekly schedule (Mon 06:00 UTC). It performs:
+
+- **Image scans** — CVE scan of the pinned `ollama/ollama` and `open-webui` images (HIGH+CRITICAL, fixed-only). Tags are read from `open-webui/.env.example`.
+- **IaC scan** — Trivy config check against `open-webui/` (compose misconfig).
+- **Secret scan** — filesystem scan for accidentally-committed secrets.
+
+All findings are uploaded as SARIF to the repo's [Security tab](https://github.com/a1exus/spark-1822/security/code-scanning). PRs/pushes fail on any CRITICAL CVE or any leaked secret; the scheduled run never fails (informational, so upstream-only CVEs don't break the green badge between version bumps).
+
+Actions are pinned by commit SHA per security best practice.
