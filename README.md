@@ -41,6 +41,7 @@ Each component has its own `README.md` — start there for deploy / configure / 
 
 | | |
 |---|---|
+| Hardware | [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) |
 | Hostname | `spark-1822.local` |
 | OS | Ubuntu (kernel `6.17.0-nvidia`), aarch64 |
 | GPU | NVIDIA GB10 |
