@@ -7,11 +7,13 @@ Configuration for the [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) workstation `s
 ```
 .
 ├── caddy/               # HTTPS reverse proxy (terminates TLS, fronts all apps)
+├── mdns/                # systemd helper publishing subdomain mDNS aliases
+├── netdata/             # Real-time host + container observability
 ├── open-webui/          # Open WebUI + Ollama docker-compose stack
 └── README.md
 ```
 
-Each top-level dir corresponds to `/opt/<name>/` on the host. Workflow: edit here, `scp` to the host (or sync via your tool of choice), then `docker compose up -d` on the host.
+Each top-level dir corresponds to `/opt/<name>/` on the host. Workflow: edit here, `scp` to a `/tmp/<name>-stage/` directory on the host, then `sudo install -m … /tmp/<name>-stage/* /opt/<name>/` and run the stack. `/opt/<name>/` is `root:root`; `.env` is `root:docker 640` so the day-to-day `alexus` user (member of the `docker` group) can run `docker compose` without sudo while not being able to edit configs casually.
 
 App stacks share an external Docker network named `web`. Caddy is the only stack that publishes host ports (`80`, `443`). All other services stay internal and are reachable only through Caddy.
 
@@ -68,6 +70,18 @@ myapp.{$CADDY_DOMAIN} {
 ```
 
 Then `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile` (no downtime).
+
+## mdns
+
+Small systemd template service that publishes subdomain mDNS aliases (e.g. `netdata.spark-1822.local` → host IP) via Avahi. Required so Caddy's subdomain site blocks resolve on the LAN — mDNS only registers the exact hostname by default.
+
+See [`mdns/README.md`](mdns/README.md) for install and usage.
+
+## netdata
+
+Real-time host + container monitoring with [Netdata](https://www.netdata.cloud/). Agent runs with `network_mode: host` + `pid: host`; UI is fronted by Caddy at `https://netdata.${CADDY_DOMAIN}` with HTTP basic auth.
+
+See [`netdata/README.md`](netdata/README.md) for deployment and basic-auth setup.
 
 ## open-webui
 
@@ -126,6 +140,7 @@ docker volume rm open-webui open-webui-ollama   # destroys data and models
 - `.env` files contain secrets and are **never** committed (see `.gitignore`).
 - Image tags are pinned to specific versions in `.env` (single source of truth) — no `:latest`.
 - Only Caddy publishes host ports (`80`, `443`); every other service is reachable only on the internal compose network or the shared `web` network.
+- `/opt/<stack>/` on the host is owned `root:root`. The only exception is each stack's `.env`, which is `root:docker 640` so the `docker`-group `alexus` user can read it (and therefore run `docker compose` without sudo). Editing configs always requires `sudo`.
 
 ## CI: Trivy security scanning
 

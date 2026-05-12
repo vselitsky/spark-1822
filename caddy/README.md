@@ -73,7 +73,15 @@ The root certificate is host-specific (gitignored as `*.crt`) and rotates only i
    }
    ```
 
-3. Reload Caddy with no downtime:
+3. Publish the subdomain on mDNS so clients can resolve it (skip if you're using a real DNS provider):
+
+   ```bash
+   sudo systemctl enable --now 'sparky-mdns-alias@myapp.spark-1822.local'
+   ```
+
+   See [`../mdns/`](../mdns/) for the alias service.
+
+4. Reload Caddy with no downtime:
 
    ```bash
    docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile

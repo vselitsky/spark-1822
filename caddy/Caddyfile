@@ -4,21 +4,43 @@
 	# admin API is bound to 127.0.0.1:2019 inside the container by default.
 }
 
-{$CADDY_DOMAIN} {
-	tls internal
-
-	encode zstd gzip
-
-	# Defense-in-depth headers. Open WebUI sets its own CSP; don't override it here.
+(common_headers) {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 	}
+}
+
+{$CADDY_DOMAIN} {
+	tls internal
+
+	encode zstd gzip
+	import common_headers
 
 	reverse_proxy open-webui:8080 {
 		# Open WebUI streams chat tokens; disable proxy buffering effects.
+		flush_interval -1
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+netdata.{$CADDY_DOMAIN} {
+	tls internal
+
+	encode zstd gzip
+	import common_headers
+
+	basic_auth {
+		{$NETDATA_BASIC_AUTH_USER} {$NETDATA_BASIC_AUTH_HASH}
+	}
+
+	reverse_proxy host.docker.internal:19999 {
 		flush_interval -1
 	}
 

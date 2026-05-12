@@ -1,0 +1,27 @@
+#!/bin/bash
+# Publishes a single mDNS alias pointing at this host's primary LAN IP.
+# Runs in the foreground; meant to be supervised by systemd as a long-lived
+# template instance (one alias per service).
+#
+# Usage: sparky-mdns-alias <alias.local>
+
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+    echo "usage: $0 <alias.local>" >&2
+    exit 64
+fi
+
+ALIAS="$1"
+
+# Primary outbound IP — the one used to reach an arbitrary off-host address.
+# Stable on a workstation with a single default route.
+IP="$(ip -4 -o route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}')"
+
+if [[ -z "${IP:-}" ]]; then
+    echo "could not determine primary IPv4 address" >&2
+    exit 1
+fi
+
+echo "publishing $ALIAS -> $IP via avahi"
+exec /usr/bin/avahi-publish -a -R "$ALIAS" "$IP"
