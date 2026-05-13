@@ -1,0 +1,42 @@
+.DEFAULT_GOAL := help
+SHELL := /usr/bin/env bash
+.SHELLFLAGS := -e -o pipefail -c
+
+VARIANT ?=
+COMPOSE := docker compose -f docker-compose.yml
+
+.PHONY: help list up down logs ps
+
+help:  ## Show this help.
+	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z_-]+:.*##/{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
+	@echo
+	@echo "Usage:"
+	@echo "  make list                       — show available env variants"
+	@echo "  make up VARIANT=<name>          — start vllm with that variant"
+	@echo "  make logs                       — tail vllm logs"
+	@echo "  make down                       — stop vllm"
+
+list:  ## List available env variants under envs/.
+	@ls envs/*.env 2>/dev/null | sed 's|envs/||; s|\.env$$||' | sort
+
+up:  ## Start with a variant. Usage: make up VARIANT=<name>
+	@if [[ -z "$(VARIANT)" ]]; then \
+	    echo "usage: make up VARIANT=<name>" >&2; \
+	    echo "available:" >&2; $(MAKE) -s list | sed 's/^/  /' >&2; \
+	    exit 64; \
+	fi
+	@if [[ ! -f envs/$(VARIANT).env ]]; then \
+	    echo "variant not found: envs/$(VARIANT).env" >&2; \
+	    echo "available:" >&2; $(MAKE) -s list | sed 's/^/  /' >&2; \
+	    exit 1; \
+	fi
+	$(COMPOSE) --env-file .env --env-file envs/$(VARIANT).env up -d
+
+down:  ## Stop vllm (volumes preserved).
+	$(COMPOSE) down
+
+logs:  ## Tail vllm logs.
+	$(COMPOSE) logs -f vllm
+
+ps:  ## Show container status.
+	$(COMPOSE) ps

@@ -32,31 +32,40 @@ Three model sources are wired up read-only into the container so existing downlo
 | `/ollama/models/blobs/sha256-<hex>` | Ollama-cached GGUF blobs (external volume `open-webui-ollama`, read-only) |
 | `/root/.cache/huggingface/hub/...` | HuggingFace CLI cache on the host, bind-mounted read-only |
 
-The entrypoint picks the model based on env vars: `MODEL_PATH` (a local file path inside the container) wins if set, otherwise it falls back to `MODEL_URL` (downloaded into `/root/.cache/llama.cpp/`).
+The entrypoint picks the model in this order: **`MODEL_PATH`** (any mounted file) → **`MODEL_OLLAMA`** (resolved against the `/ollama` manifest store at start, e.g. `gpt-oss-safeguard:20b`) → **`MODEL_URL`** (downloaded into the cache volume).
 
 ## Files
 
 ```
 llama-cpp/
 ├── docker-compose.yml
-├── entrypoint.sh         # selects MODEL_PATH or MODEL_URL
-├── .env.example
-└── .env                  # gitignored
+├── entrypoint.sh        # resolves MODEL_OLLAMA → blob path; picks PATH/URL/OLLAMA
+├── Makefile             # make up VARIANT=<name> / list / down / logs / ps
+├── envs/                # one .env per model variant — pick one with `make up VARIANT=…`
+│   ├── README.md
+│   ├── gpt-oss-safeguard-120b-hf.env
+│   ├── gpt-oss-safeguard-20b.env
+│   ├── qwen3.6-35b.env
+│   ├── phi4-14b.env
+│   ├── gemma4-e4b.env
+│   ├── llama3.1-8b.env
+│   ├── deepseek-r1-8b.env
+│   ├── granite4.1-3b.env
+│   └── tinyllama.env
+├── .env.example         # common settings (image tag, HF cache, HF token)
+└── .env                 # gitignored copy of the above
 ```
 
 ## Configure
 
+`.env` holds settings that don't change with the model (image pin, HF cache, optional HF token). Variant files in `envs/` hold the per-model knobs (model source, alias, context, GPU layers).
+
 ```bash
 cp .env.example .env
 # Edit .env:
-#   LLAMACPP_TAG     — pinned image (server-cuda@sha256:...). Multi-arch; works on aarch64+CUDA.
-#   MODEL_PATH       — local file inside the container (Ollama blob, HF snapshot, anything mounted). Wins if set.
-#   MODEL_URL        — remote URL; llama.cpp downloads into the llama-cpp-cache volume.
-#   MODEL_ALIAS      — name surfaced via the OpenAI-compatible API.
-#   CTX_SIZE         — context window (default 8192)
-#   N_GPU_LAYERS     — layers on GPU (999 = all)
-#   HF_CACHE_HOST    — host path holding the HuggingFace CLI cache (default /home/alexus/.cache/huggingface).
-#   HF_TOKEN         — only needed for gated/private models
+#   LLAMACPP_TAG     — pinned image (server-cuda@sha256:…). Multi-arch — works on aarch64+CUDA.
+#   HF_CACHE_HOST    — host path holding the HuggingFace CLI cache (default /opt/hf/.cache/huggingface).
+#   HF_TOKEN         — only needed for gated/private models.
 ```
 
 ### Pinning the image
@@ -78,8 +87,15 @@ Set `LLAMACPP_TAG=server-cuda@<that-digest>` in `.env`.
 Prereq: `caddy/` is running and the shared `caddy` network exists.
 
 ```bash
-docker compose up -d
-docker compose logs -f llama-cpp   # first run: HF download (can be many GB / minutes)
+make list                                  # show available variants
+make up VARIANT=gpt-oss-safeguard-20b      # start that one
+make logs                                  # tail
+```
+
+Equivalent without Make:
+
+```bash
+docker compose --env-file .env --env-file envs/<variant>.env up -d
 ```
 
 Once healthy, the server is at `https://llama.${CADDY_DOMAIN}`:
@@ -95,53 +111,20 @@ Once healthy, the server is at `https://llama.${CADDY_DOMAIN}`:
 
 ## Changing the model
 
-Edit `MODEL_PATH` (preferred) or `MODEL_URL` in `.env`, plus `MODEL_ALIAS`, then:
+Switch to another variant with `make up VARIANT=<name>` (or repeat the `--env-file` invocation). The `llama-cpp-cache` volume preserves previously-downloaded URL-pulled models, so swapping back is fast.
 
-```bash
-docker compose up -d
-```
+### Adding a new Ollama-backed variant
 
-The cache volume preserves previously-downloaded files, so swapping back to a URL-pulled model is fast.
-
-### Use a model Ollama already has
-
-Ollama's volume is mounted at `/ollama:ro` inside the container. The GGUF for any pulled model is one of its blobs — specifically the layer with mediaType `application/vnd.ollama.image.model`. Find the blob path for a model:
-
-```bash
-docker run --rm -v open-webui-ollama:/data:ro -v ./tools:/tools:ro alpine sh -c '
-    apk add -q jq >/dev/null
-    jq -r ".layers[] | select(.mediaType==\"application/vnd.ollama.image.model\") | .digest" \
-        /data/models/manifests/registry.ollama.ai/library/MODEL/TAG \
-        | sed "s|sha256:|/ollama/models/blobs/sha256-|"
-'
-```
-
-For example, after `ollama pull gpt-oss-safeguard:20b`:
-
-```bash
-docker run --rm -v open-webui-ollama:/data:ro alpine sh -c '
-    apk add -q jq >/dev/null
-    jq -r ".layers[] | select(.mediaType==\"application/vnd.ollama.image.model\") | .digest" \
-        /data/models/manifests/registry.ollama.ai/library/gpt-oss-safeguard/20b \
-        | sed "s|sha256:|/ollama/models/blobs/sha256-|"
-'
-# → /ollama/models/blobs/sha256-c4016c9e54d0a9218b5911790579e58284a9ed57c48b7e87607125c6307f9da1
-```
-
-Set that path as `MODEL_PATH` in `.env`:
+`ollama pull <name>:<tag>` on the host puts the GGUF into the `open-webui-ollama` Docker volume, which this stack mounts at `/ollama:ro`. Then create `envs/<name>-<tag>.env`:
 
 ```
-MODEL_PATH=/ollama/models/blobs/sha256-c4016c9e54d0a9218b5911790579e58284a9ed57c48b7e87607125c6307f9da1
-MODEL_ALIAS=gpt-oss-safeguard-20b
+MODEL_OLLAMA=<name>:<tag>
+MODEL_ALIAS=<friendly-name>
+CTX_SIZE=8192
+N_GPU_LAYERS=999
 ```
 
-List Ollama-cached models with:
-
-```bash
-docker run --rm -v open-webui-ollama:/data:ro alpine \
-    find /data/models/manifests/registry.ollama.ai/library -mindepth 2 -type f \
-    -printf '%P\n'
-```
+The entrypoint resolves the right blob path at start by reading the Ollama manifest at `/ollama/models/manifests/registry.ollama.ai/library/<name>/<tag>` — no need to hardcode digests.
 
 ### Use a model already downloaded by the HuggingFace CLI
 

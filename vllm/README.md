@@ -29,22 +29,28 @@ docker compose -f /opt/open-webui/docker-compose.yml up -d
 ```
 vllm/
 ├── docker-compose.yml
-├── .env.example
-└── .env                 # gitignored
+├── Makefile             # make up VARIANT=<name> / list / down / logs / ps
+├── envs/                # one .env per model variant
+│   ├── README.md
+│   ├── qwen2.5-7b.env
+│   ├── phi3.5-mini.env
+│   ├── qwen2.5-72b-awq.env
+│   ├── llama3.1-8b.env
+│   └── gpt-oss-120b.env
+├── .env.example         # common settings (image tag, HF cache, HF token)
+└── .env                 # gitignored copy of the above
 ```
 
 ## Configure
 
+`.env` holds settings that don't change with the model (image pin, HF cache, optional HF token). Variant files in `envs/` hold the per-model knobs.
+
 ```bash
 cp .env.example .env
 # Edit .env:
-#   VLLM_TAG          — pinned image tag (e.g. v0.20.2). Multi-arch — arm64+CUDA works on GB10.
-#   VLLM_MODEL        — HuggingFace repo ID, e.g. Qwen/Qwen2.5-7B-Instruct
-#   VLLM_SERVED_NAME  — optional override of the model name surfaced via the API
-#   VLLM_GPU_MEM      — fraction of VRAM vLLM may use (0.0–1.0)
-#   VLLM_MAX_LEN      — max context length
-#   HF_CACHE_HOST     — host path holding the HuggingFace CLI cache
-#   HF_TOKEN          — only needed for gated/private models
+#   VLLM_TAG          — pinned image tag (e.g. v0.20.2).
+#   HF_CACHE_HOST     — host path holding the HuggingFace CLI cache.
+#   HF_TOKEN          — only needed for gated/private models.
 ```
 
 ## Deploy
@@ -52,8 +58,16 @@ cp .env.example .env
 Prereq: `caddy/` running, shared `caddy` network exists.
 
 ```bash
-docker compose up -d
-docker compose logs -f vllm   # first run: HF download
+make list                          # show available variants
+make up VARIANT=qwen2.5-7b         # start that one
+make logs                          # tail
+```
+
+Equivalent without Make:
+
+```bash
+docker compose --env-file .env --env-file envs/<variant>.env up -d
+docker compose logs -f vllm        # first run: HF download
 ```
 
 Once healthy:

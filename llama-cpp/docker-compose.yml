@@ -26,6 +26,7 @@ services:
       HF_TOKEN: ${HF_TOKEN:-}
       MODEL_PATH: ${MODEL_PATH:-}
       MODEL_URL: ${MODEL_URL:-}
+      MODEL_OLLAMA: ${MODEL_OLLAMA:-}
       MODEL_ALIAS: ${MODEL_ALIAS:-llama-cpp}
       CTX_SIZE: ${CTX_SIZE:-8192}
       N_GPU_LAYERS: ${N_GPU_LAYERS:-999}
