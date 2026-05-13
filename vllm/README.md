@@ -6,6 +6,13 @@ vLLM complements [`llama-cpp/`](../llama-cpp/): use llama.cpp for GGUF files (sm
 
 > ⚠️ **Not yet smoke-tested on this host.** vLLM's published support matrix doesn't list compute capability 12.1 (GB10). The image multi-arch index includes arm64, but the first `docker compose up -d` here may fail if sm_120 CUDA kernels aren't compiled in. If it works, leave this note alone; if it doesn't, expect to build vLLM from source or wait for upstream support.
 
+## Supported model formats
+
+- **HuggingFace transformers format.** vLLM loads `safetensors` (preferred) and PyTorch `.bin` directly by repo ID. All 4 models cached on this host (`openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `Qwen/Qwen3.6-27B`, `Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled`) are this format.
+- **Not supported as direct inputs:** GGUF (use [`llama-cpp/`](../llama-cpp/) for those), ONNX, custom TensorRT engines.
+- **Quantization formats supported on Hopper/Blackwell-class GPUs:** AWQ, GPTQ, FP8, INT4, BitsAndBytes, and a few more. Full hardware/format compatibility chart: <https://docs.vllm.ai/en/latest/quantization/supported_hardware.html>.
+- **Supported architectures** (model families like Llama, Qwen, Mistral, GPT-OSS, DeepSeek, Phi, Gemma, …) are listed here: <https://docs.vllm.ai/en/latest/models/supported_models.html>.
+
 ## Topology
 
 Single container on the shared `caddy` Docker network; no host port published. The host's HuggingFace cache is bind-mounted read-write so vLLM and the `hf` CLI share the same downloads. Models come from HuggingFace by repo ID — vLLM loads safetensors directly.

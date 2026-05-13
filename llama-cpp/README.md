@@ -4,6 +4,14 @@
 
 Set up as the workaround for Ollama not being able to pull `gpt-oss-safeguard:120b` (upstream issue: ollama/ollama#16121).
 
+## Supported model formats
+
+- **GGUF only.** The single input format llama.cpp's server can load directly. Single-file or multi-part split GGUF (the model in `envs/gpt-oss-safeguard-120b-hf.env` is a 2-file split — llama.cpp opens the first file and picks the second up by naming convention).
+- **Not supported as direct inputs:** HuggingFace `safetensors`, PyTorch `.bin`, ONNX, ggml v1/v2 (legacy).
+- **HF safetensors models can be converted to GGUF** with [`convert_hf_to_gguf.py`](https://github.com/ggml-org/llama.cpp/blob/master/convert_hf_to_gguf.py) shipped in the llama.cpp repo. The 4 safetensors models in this host's HF cache (`openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `Qwen/Qwen3.6-27B`, `Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled`) are **not** loaded as-is — convert first, or pull a ready-made GGUF (look on HF for `<author>/<repo>-GGUF` published by `bartowski`, `lmstudio-community`, `unsloth`, etc.).
+- **Quantization formats supported inside GGUF**: `Q2_K`–`Q8_0`, `F16`, `F32`, `IQ*`, OpenAI's `MXFP4`, and others. See <https://github.com/ggml-org/llama.cpp/blob/master/examples/quantize/README.md>.
+- **Architecture support** is broad and tracked here: <https://github.com/ggml-org/llama.cpp#description> (search the README for the list of supported model families).
+
 ## Topology
 
 `llama-cpp` runs as a single container on the shared `caddy` Docker network. It connects only to Caddy; no host port is published.
