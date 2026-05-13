@@ -9,21 +9,29 @@ ENV := $(strip $(ENV))
 SERVICE := llama-cpp
 COMPOSE := docker compose -f docker-compose.yml
 
-.PHONY: help list up down logs ps
+.PHONY: help list up
 
 help:  ## Show this help.
 	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z_-]+:.*##/{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
 	@echo
 	@echo "Usage:"
 	@echo "  make list                       — show available env variants"
-	@echo "  make up ENV=<name>              — start llama-cpp with that env"
-	@echo "  make logs                       — tail llama-cpp logs"
-	@echo "  make down                       — stop llama-cpp"
+	@echo "  make up ENV=<name>              — start $(SERVICE) with that env"
+	@echo
+	@echo "For management, invoke docker compose directly. The compose file"
+	@echo "uses required vars (e.g. \$${LLAMACPP_TAG:?...}), so pass --env-file:"
+	@echo "  docker compose --env-file envs/<name>.env logs -f $(SERVICE)"
+	@echo "  docker compose --env-file envs/<name>.env ps"
+	@echo "  docker compose --env-file envs/<name>.env down"
+	@echo
+	@echo "Or use plain docker against the container name (no env needed):"
+	@echo "  docker logs -f $(SERVICE)"
+	@echo "  docker stop $(SERVICE)"
 
 list:  ## List available env variants under envs/.
 	@ls envs/*.env 2>/dev/null | sed 's|envs/||; s|\.env$$||' | sort
 
-up:  ## Activate a variant (copies envs/<name>.env → .env) and start. Usage: make up ENV=<name>
+up:  ## Start with the given variant. No .env is written. Usage: make up ENV=<name>
 	@if [[ -z "$(ENV)" ]]; then \
 	    echo "usage: make up ENV=<name>" >&2; \
 	    echo "available:" >&2; $(MAKE) -s list | sed 's/^/  /' >&2; \
@@ -34,14 +42,4 @@ up:  ## Activate a variant (copies envs/<name>.env → .env) and start. Usage: m
 	    echo "available:" >&2; $(MAKE) -s list | sed 's/^/  /' >&2; \
 	    exit 1; \
 	fi
-	cp "envs/$(ENV).env" .env
-	$(COMPOSE) up -d
-
-down:  ## Stop llama-cpp (volumes preserved).
-	$(COMPOSE) down
-
-logs:  ## Tail llama-cpp logs.
-	$(COMPOSE) logs -f $(SERVICE)
-
-ps:  ## Show container status.
-	$(COMPOSE) ps
+	$(COMPOSE) --env-file "envs/$(ENV).env" up -d
