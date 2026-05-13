@@ -32,6 +32,21 @@ Behind the scenes:
 docker compose --env-file .env --env-file envs/<variant>.env up -d
 ```
 
+## Maintenance
+
+This directory has its own `Makefile` for keeping the variant list in sync with what's actually on the remote host. It is **read-only against the remote** and **never downloads** anything.
+
+```bash
+make list       # local variants
+make remote     # GGUF files on the remote (llama-cpp-cache volume + HF cache)
+make sync       # create an env file for every remote GGUF not yet present (never overwrites)
+make stale      # local envs whose MODEL_PATH file isn't on the remote
+```
+
+Override host with `REMOTE_HOST=other.local make sync` if you ever need to.
+
+`stale` only validates `MODEL_PATH=` entries (it can check the file exists). `MODEL_URL=` and `MODEL_OLLAMA=` forms aren't validated.
+
 ## See also
 
 - [`../README.md`](../README.md) for the rest of the stack docs.

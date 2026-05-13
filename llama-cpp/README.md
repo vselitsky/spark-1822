@@ -42,6 +42,7 @@ llama-cpp/
 ├── entrypoint.sh        # resolves MODEL_OLLAMA → blob path; picks PATH/URL/OLLAMA
 ├── Makefile             # make up VARIANT=<name> / list / down / logs / ps
 ├── envs/                # one .env per model variant — pick one with `make up VARIANT=…`
+│   ├── Makefile         # list / remote / sync / stale against the host's GGUF caches
 │   ├── README.md
 │   └── gpt-oss-safeguard-120b-hf.env
 ├── .env.example         # common settings (image tag, HF cache, HF token)

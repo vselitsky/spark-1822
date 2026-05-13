@@ -38,6 +38,19 @@ Behind the scenes:
 docker compose --env-file .env --env-file envs/<variant>.env up -d
 ```
 
+## Maintenance
+
+This directory has its own `Makefile` for keeping the variant list in sync with what's actually downloaded on the remote host. It is **read-only against the remote** and **never downloads** anything.
+
+```bash
+make list       # local variants
+make remote     # HF repos already downloaded on $(REMOTE_HOST)
+make sync       # create an env file for every remote model not yet present (never overwrites)
+make stale      # local envs whose VLLM_MODEL isn't on the remote
+```
+
+Override host with `REMOTE_HOST=other.local make sync` if you ever need to.
+
 ## See also
 
 - [`../README.md`](../README.md) for the rest of the stack docs.

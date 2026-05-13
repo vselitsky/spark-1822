@@ -31,6 +31,7 @@ vllm/
 ├── docker-compose.yml
 ├── Makefile             # make up VARIANT=<name> / list / down / logs / ps
 ├── envs/                # one .env per model variant
+│   ├── Makefile         # list / remote / sync / stale against the host's HF cache
 │   ├── README.md
 │   ├── gpt-oss-120b.env
 │   ├── gpt-oss-20b.env
