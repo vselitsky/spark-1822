@@ -33,7 +33,9 @@ vllm/
 ├── envs/                # one .env per model variant
 │   ├── README.md
 │   ├── gpt-oss-120b.env
-│   └── qwen3.5-27b-reasoning.env
+│   ├── gpt-oss-20b.env
+│   ├── qwen3.5-27b-reasoning.env
+│   └── qwen3.6-27b.env
 ├── .env.example         # common settings (image tag, HF cache, HF token)
 └── .env                 # gitignored copy of the above
 ```

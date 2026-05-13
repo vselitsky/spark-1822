@@ -9,7 +9,9 @@ Each variant here corresponds to a model **already downloaded** on this host (un
 | File | HF repo |
 |---|---|
 | `gpt-oss-120b.env` | `openai/gpt-oss-120b` |
+| `gpt-oss-20b.env` | `openai/gpt-oss-20b` |
 | `qwen3.5-27b-reasoning.env` | `Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled` |
+| `qwen3.6-27b.env` | `Qwen/Qwen3.6-27B` |
 
 ## What each file sets
 
