@@ -23,5 +23,11 @@ args=(
     --tool-call-parser       qwen3_xml
 )
 
+# vLLM's env scanner warns on any unrecognized var with the VLLM_ prefix
+# (which it owns). Our launcher reads VLLM_MODEL / VLLM_SERVED_NAME /
+# VLLM_GPU_MEM / VLLM_MAX_LEN purely to build the argv — drop them from
+# the env before exec so vLLM's own scan stays quiet.
+unset VLLM_MODEL VLLM_SERVED_NAME VLLM_GPU_MEM VLLM_MAX_LEN
+
 echo "launching: vllm serve ${args[*]}"
 exec vllm serve "${args[@]}"
