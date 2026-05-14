@@ -57,11 +57,10 @@ Each component has its own `README.md` — start there for deploy / configure / 
 
 ```bash
 # On the host:
-docker network create caddy              # shared external network — Caddy reaches every app on this
 cd /opt/mdns && make install             # mDNS alias helper (see mdns/README.md)
 ```
 
-Then deploy each stack per its own README, in order: `caddy/` first, then everything else.
+Then deploy each stack per its own README, in order: `caddy/` first (it creates the shared `caddy` Docker network that everything else joins), then the rest.
 
 ## Deploy workflow
 

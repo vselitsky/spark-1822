@@ -34,18 +34,12 @@ cp .env.example .env
 
 ## Deploy
 
-Prereq: the shared `caddy` network must exist (one-time, on the host):
-
-```bash
-docker network create caddy
-```
-
-Then:
-
 ```bash
 docker compose up -d
 docker compose ps
 ```
+
+This compose stack **owns** the shared `caddy` Docker network: bringing the stack up creates it (if absent), and the other stacks (`vllm/`, `llama-cpp/`, `open-webui/`, `netdata/`, …) join it by referencing `caddy` as `external: true`. Bring Caddy up first.
 
 ## Trust the root CA
 
