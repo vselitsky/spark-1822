@@ -4,7 +4,7 @@
   <img src="sparky.svg" alt="sparky" width="220" height="260">
 </p>
 
-Configuration for the [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) workstation `spark-1822` (Ubuntu, aarch64, GB10 GPU).
+Configuration for the [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) workstation `spark-1822` (Ubuntu, aarch64, GB10 GPU). Traefik (primary) / Caddy (backup) HTTPS reverse proxies fronting Open WebUI + Ollama, llama.cpp, and vLLM inference stacks; Netdata for observability; Cloudflare Tunnel for outbound-only public ingress; mDNS aliases on the host; Trivy CI for image / IaC / secret scanning.
 
 ## Contents
 
