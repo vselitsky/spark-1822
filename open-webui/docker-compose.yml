@@ -75,7 +75,14 @@ networks:
     name: caddy
 
 volumes:
+  # Both volumes are external — host-side persistent state we don't want
+  # `docker compose down -v` to ever destroy (ollama model blobs ~tens of
+  # GiB; Open WebUI users/chats/config). `open-webui-ollama` is also
+  # consumed read-only by the `llama-cpp/` stack to reuse Ollama's GGUF
+  # blob cache.
   ollama:
+    external: true
     name: open-webui-ollama
   open-webui:
+    external: true
     name: open-webui

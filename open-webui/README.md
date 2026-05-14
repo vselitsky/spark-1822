@@ -28,7 +28,17 @@ cp .env.example .env
 
 ## Deploy
 
-Prereq: the shared `caddy` external network must exist and [Caddy](../caddy/) must be running.
+Prereqs:
+
+- [Caddy](../caddy/) must be running (it owns the shared `caddy` Docker network this stack joins).
+- The two persistent volumes — `open-webui` (WebUI data) and `open-webui-ollama` (Ollama blob store) — must exist. They're declared `external: true` in the compose so `docker compose down -v` never destroys them. First-time deploy:
+
+  ```bash
+  docker volume create open-webui
+  docker volume create open-webui-ollama
+  ```
+
+Then:
 
 ```bash
 docker compose up -d
