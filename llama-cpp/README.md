@@ -85,11 +85,11 @@ If you want belt-and-suspenders digest pinning (e.g. to guard against a hypothet
 TOK=$(curl -s 'https://ghcr.io/token?service=ghcr.io&scope=repository:ggml-org/llama.cpp:pull' | jq -r .token)
 curl -sI -H "Authorization: Bearer $TOK" \
     -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
-    "https://ghcr.io/v2/ggml-org/llama.cpp/manifests/server-cuda-b9151" \
+    "https://ghcr.io/v2/ggml-org/llama.cpp/manifests/server-cuda-b5343" \
     | grep -i docker-content-digest
 ```
 
-Then set `LLAMACPP_TAG=server-cuda-b9151@<that-digest>`.
+Then set `LLAMACPP_TAG=server-cuda-b5343@<that-digest>`.
 
 ## Deploy
 

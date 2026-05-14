@@ -140,7 +140,7 @@ Host-local files outside git stay put across pulls — each stack's `.env` (secr
 ## Conventions
 
 - **One reverse proxy at a time.** Traefik and Caddy both bind `:80`/`:443` — pick one. The other stack's compose files coexist on disk so switching is `docker compose down` + `docker compose up -d`. Services define `traefik.*` labels *and* sit in Caddy's `Caddyfile.d/`, so the same compose runs under either proxy.
-- **Image tags pinned** to specific versions in `.env` files (single source of truth, validated by CI) — never `:latest`. Immutable per-build tags preferred (e.g. `server-cuda-b9151`); digest pins when only a floating tag is published.
+- **Image tags pinned** to specific versions in `.env` files (single source of truth, validated by CI) — never `:latest`. Immutable per-build tags preferred (e.g. `server-cuda-b5343`); digest pins when only a floating tag is published.
 - **Inference config split** by scope. `<stack>/.env` carries host-wide values (image pin, HF cache path, HF token, default knobs); `<stack>/envs/<name>.env` carries just the model selection plus per-variant overrides. `make up ENV=<name>` chains both via `docker compose --env-file .env --env-file envs/<name>.env up -d`. Both files are gitignored — the templates live next to them as `.env.example`.
 - **Loopback ports on inference stacks.** `vllm/` and `llama-cpp/` additionally bind their API to `127.0.0.1` on the host for direct curl / benchmarking — LAN traffic still flows through the proxy.
 - **Permissions.** `/opt/<stack>/` is `root:root`. The `.env` files are `root:docker 640` so the `docker`-group user reads them and runs compose without sudo. Editing configs requires `sudo`.
