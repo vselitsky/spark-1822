@@ -16,6 +16,16 @@ services:
       - "127.0.0.1:${HOST_PORT:-8000}:8000"
     ipc: host                       # required for NCCL / Torch shared-memory paths
     shm_size: "8gb"
+    # Traefik docker-provider labels — inert when caddy is the active
+    # proxy (caddy reads Caddyfile.d, not labels). When traefik is up,
+    # they wire vllm:8000 to https://vllm.spark-1822.local.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=caddy"
+      - "traefik.http.routers.vllm.rule=Host(`vllm.spark-1822.local`)"
+      - "traefik.http.routers.vllm.entryPoints=websecure"
+      - "traefik.http.routers.vllm.tls=true"
+      - "traefik.http.services.vllm.loadbalancer.server.port=8000"
     volumes:
       # HuggingFace CLI cache, shared with the host so existing downloads are
       # reused and new ones are visible outside the container.

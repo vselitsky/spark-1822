@@ -1,19 +1,21 @@
 # traefik
 
-HTTPS reverse proxy. Alternative to [`caddy/`](../caddy/) — same set of routes, but driven by [Traefik](https://traefik.io/). Caddy and Traefik can't run at the same time (both want host ports `:80` / `:443`); start one or the other.
+HTTPS reverse proxy — **primary** front-facing entry point on this host. [`caddy/`](../caddy/) is the backup. Caddy and Traefik can't run at the same time (both want host ports `:80` / `:443`); start one or the other.
 
-## Why this exists
+## How routing works
 
-Sibling stack to `caddy/` for A/B-ing the two proxies on the exact same backends. Useful if you want Traefik's middleware ecosystem (rate-limiting, auth providers, header tweaks via Docker labels) or just to see how the same setup looks under a different proxy. The Caddy stack stays as-is; you switch.
+Each app's `docker-compose.yml` carries `traefik.*` labels (`Host(...)`, `entryPoints`, `tls`, `loadbalancer.server.port`). Traefik's **docker provider** discovers them via the docker socket and wires up routers + services automatically — no central config file to edit when you add a new app. Anything that can't be label-driven (host-network containers like `netdata`; Traefik's own dashboard) lives in `dynamic/services.yml` and the **file provider** picks it up.
+
+Caddy reads `Caddyfile.d/*.caddyfile`, not labels — so the same compose files work under either proxy. Switching is a `docker compose down` + `docker compose up -d` away.
 
 ## Files
 
 ```
 traefik/
-├── docker-compose.yml         # traefik service, joins external `caddy` network
-├── traefik.yml                # static config (entrypoints, providers, api, log)
+├── docker-compose.yml         # traefik service, joins external `caddy` network, mounts docker.sock:ro
+├── traefik.yml                # static config — docker + file providers, entrypoints, api, log
 ├── dynamic/                   # file provider — hot-reloaded on edit
-│   ├── services.yml           # routers + backend services (one block per host)
+│   ├── services.yml           # routes for things the docker provider can't reach (netdata, dashboard)
 │   └── tls.yml                # references the wildcard cert from certs/
 ├── wildcard.cnf               # OpenSSL config for `make wildcard-cert`
 ├── Makefile                   # `make wildcard-cert` (mint/renew the leaf)
@@ -76,32 +78,32 @@ Plain HTTP requests on `:80` are 308-redirected to HTTPS.
 
 ## Add an app
 
-1. Bring its compose up on the `caddy` Docker network (no host-port publish needed).
-2. Add a router + service block to `dynamic/services.yml`:
+For a container on the `caddy` Docker network, just add labels to its `docker-compose.yml` and let the docker provider pick it up:
 
-   ```yaml
-   http:
-     routers:
-       myapp:
-         rule: "Host(`myapp.spark-1822.local`)"
-         entryPoints: [websecure]
-         service: myapp
-         tls: {}
-     services:
-       myapp:
-         loadBalancer:
-           servers:
-             - url: "http://myapp:8080"
-           passHostHeader: true
-   ```
+```yaml
+services:
+  myapp:
+    # … usual config …
+    networks:
+      - caddy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=caddy"
+      - "traefik.http.routers.myapp.rule=Host(`myapp.spark-1822.local`)"
+      - "traefik.http.routers.myapp.entryPoints=websecure"
+      - "traefik.http.routers.myapp.tls=true"
+      - "traefik.http.services.myapp.loadbalancer.server.port=8080"
+```
 
-3. Publish the mDNS alias on the host (see [`../mdns/`](../mdns/)):
+Publish the mDNS alias on the host (see [`../mdns/`](../mdns/)):
 
-   ```bash
-   cd /opt/mdns && make add ALIAS=myapp
-   ```
+```bash
+cd /opt/mdns && make add ALIAS=myapp
+```
 
-Traefik's file provider has `watch: true`, so the change picks up without a restart.
+Bring the app up — Traefik picks up the labels live (docker provider has `watch: true`); no Traefik restart needed.
+
+For containers that **can't** be label-discovered (host-network mode, external services), drop a router + service into `dynamic/services.yml` instead. The file provider has `watch: true` too.
 
 ## Logs
 

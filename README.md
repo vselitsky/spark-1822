@@ -20,8 +20,8 @@ Configuration for the [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) workstation `s
 
 ```
 .
-├── caddy/         # HTTPS reverse proxy — default (Caddy)
-├── traefik/       # HTTPS reverse proxy — alternative (Traefik); pick one or the other
+├── traefik/       # HTTPS reverse proxy — primary (Traefik, docker-label-driven)
+├── caddy/         # HTTPS reverse proxy — backup (Caddy, Caddyfile-driven); pick one or the other
 ├── llama-cpp/     # llama.cpp server (GGUF, GPU on GB10 via CUDA)
 ├── mdns/          # systemd helper publishing subdomain mDNS aliases
 ├── netdata/       # Real-time host + container observability
@@ -39,8 +39,8 @@ Each component has its own `README.md` — start there for deploy / configure / 
 
 | Dir | What | Access |
 |---|---|---|
-| [`caddy/`](caddy/) | HTTPS reverse proxy (default), Caddy local CA | publishes `:80`/`:443` (when running) |
-| [`traefik/`](traefik/) | HTTPS reverse proxy (alternative) — wildcard cert signed by Caddy's root, so trust chain is shared | publishes `:80`/`:443` (when running — pick caddy or traefik, not both) |
+| [`traefik/`](traefik/) | HTTPS reverse proxy (primary), docker-label-driven, wildcard cert signed by Caddy's root | publishes `:80`/`:443` (when running) |
+| [`caddy/`](caddy/) | HTTPS reverse proxy (backup), Caddyfile-driven, owns the internal CA | publishes `:80`/`:443` (when running — pick caddy or traefik, not both) |
 | [`llama-cpp/`](llama-cpp/) | llama.cpp server (GGUF, OpenAI-compatible API + web UI) — model variants under `envs/` | `https://llama.spark-1822.local` |
 | [`mdns/`](mdns/) | Host systemd template that publishes `<sub>.spark-1822.local` mDNS aliases | host-level |
 | [`netdata/`](netdata/) | Real-time host + container telemetry | `https://netdata.spark-1822.local` |

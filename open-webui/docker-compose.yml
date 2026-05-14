@@ -8,6 +8,16 @@ services:
     networks:
       - internal
       - caddy
+    # Traefik docker-provider labels — inert when caddy is the active
+    # proxy. When traefik is up, they wire ollama:11434 to
+    # https://ollama.spark-1822.local.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=caddy"
+      - "traefik.http.routers.ollama.rule=Host(`ollama.spark-1822.local`)"
+      - "traefik.http.routers.ollama.entryPoints=websecure"
+      - "traefik.http.routers.ollama.tls=true"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
     volumes:
       - ollama:/root/.ollama
     environment:
@@ -44,6 +54,16 @@ services:
     networks:
       - internal
       - caddy
+    # Traefik docker-provider labels — inert when caddy is the active
+    # proxy. When traefik is up, they wire open-webui:8080 to
+    # https://open-webui.spark-1822.local.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=caddy"
+      - "traefik.http.routers.open-webui.rule=Host(`open-webui.spark-1822.local`)"
+      - "traefik.http.routers.open-webui.entryPoints=websecure"
+      - "traefik.http.routers.open-webui.tls=true"
+      - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
     volumes:
       - open-webui:/app/backend/data
     environment:

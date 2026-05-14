@@ -16,6 +16,10 @@ services:
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - ./dynamic:/etc/traefik/dynamic:ro
       - ./certs:/etc/traefik/certs:ro
+      # Read-only access to the docker socket so the docker provider can
+      # discover labelled services. Mount is :ro — Traefik only reads
+      # container metadata, never controls them.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/ping"]
       interval: 30s

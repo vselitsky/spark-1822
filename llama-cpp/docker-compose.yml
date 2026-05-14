@@ -15,6 +15,16 @@ services:
     # outside world. Override HOST_PORT in .env if 8080 is taken.
     ports:
       - "127.0.0.1:${HOST_PORT:-8080}:8080"
+    # Traefik docker-provider labels — inert when caddy is the active
+    # proxy. When traefik is up, they wire llama-cpp:8080 to
+    # https://llama.spark-1822.local.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=caddy"
+      - "traefik.http.routers.llama.rule=Host(`llama.spark-1822.local`)"
+      - "traefik.http.routers.llama.entryPoints=websecure"
+      - "traefik.http.routers.llama.tls=true"
+      - "traefik.http.services.llama.loadbalancer.server.port=8080"
     volumes:
       # llama.cpp's own model cache (filled by --model-url).
       - llama-cpp-cache:/root/.cache/llama.cpp

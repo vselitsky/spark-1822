@@ -35,6 +35,17 @@ ping:
   entryPoint: ping
 
 providers:
+  # Primary: discover labelled services on the docker socket. Services
+  # opt in with `traefik.enable=true` plus the usual router/service
+  # labels. Caddy ignores those labels, so the same compose files work
+  # under either proxy.
+  docker:
+    exposedByDefault: false
+    network: caddy      # always dial upstreams over the shared caddy network
+    watch: true
+
+  # Secondary: anything that can't be label-driven — host-network
+  # containers (netdata) and traefik's own dashboard route.
   file:
     directory: /etc/traefik/dynamic
     watch: true         # hot-reload on dynamic/*.yml changes
