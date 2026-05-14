@@ -9,14 +9,18 @@ ENV := $(strip $(ENV))
 SERVICE := vllm
 COMPOSE := docker compose -f docker-compose.yml
 
-.PHONY: help list up
+.PHONY: help list up hf-cache hf-sync
 
 help:  ## Show this help.
-	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z_-]+:.*##/{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z_-]+:.*##/{printf "  \033[36m%-12s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
 	@echo
 	@echo "Usage:"
 	@echo "  make list                       — show available env variants"
 	@echo "  make up ENV=<name>              — start $(SERVICE) with that env"
+	@echo
+	@echo "HF-cache maintenance (forwards to envs/Makefile):"
+	@echo "  make hf-cache                   — list HF repos already downloaded on the remote"
+	@echo "  make hf-sync                    — reconcile envs against the remote (create / restore / orphan to .bak)"
 	@echo
 	@echo "For management, invoke docker compose directly. The compose file"
 	@echo "uses required vars (e.g. \$${VLLM_TAG:?...}), so pass --env-file:"
@@ -43,3 +47,9 @@ up:  ## Start with the given variant. No .env is written. Usage: make up ENV=<na
 	    exit 1; \
 	fi
 	$(COMPOSE) --env-file "envs/$(ENV).env" up -d
+
+hf-cache:  ## List HF repos already downloaded on the remote host.
+	@$(MAKE) -C envs --no-print-directory cache
+
+hf-sync:  ## Reconcile envs against the remote HF cache (create / restore from .bak / orphan to .bak).
+	@$(MAKE) -C envs --no-print-directory sync

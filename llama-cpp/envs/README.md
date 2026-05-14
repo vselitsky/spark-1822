@@ -32,14 +32,18 @@ This directory has its own `Makefile` for keeping the variant list in sync with 
 
 ```bash
 make list       # local variants
-make remote     # GGUF files on the remote (llama-cpp-cache volume + HF cache)
-make sync       # create an env file for every remote GGUF not yet present (never overwrites)
-make stale      # local envs whose MODEL_PATH file isn't on the remote
+make cache      # GGUF files on the remote (llama-cpp-cache volume + HF cache)
+make sync       # reconcile envs against the remote:
+                #   + create envs for new remote GGUFs (one per cache location)
+                #   ↩ restore <name>.env from <name>.env.bak when the GGUF returns
+                #   → move <name>.env to <name>.env.bak when its GGUF leaves
 ```
 
-Override host with `REMOTE_HOST=other.local make sync` if you ever need to.
+These targets are also exposed at the parent dir as `make hf-cache` / `make hf-sync` for convenience. Override the remote host with `REMOTE_HOST=other.local make sync` if you ever need to.
 
-`stale` only validates `MODEL_PATH=` entries (it can check the file exists). `MODEL_URL=` and `MODEL_OLLAMA=` forms aren't validated.
+`sync` only orphans envs whose `MODEL_PATH=` points at a GGUF file (it can check existence on the remote). `MODEL_URL=` and `MODEL_OLLAMA=` envs are not validated and are never orphaned automatically — leave them alone or remove them manually.
+
+`*.env.bak` is gitignored — host-local artifact of the sync's orphaning path. A subsequent `make sync` will restore the file if the corresponding GGUF reappears in the remote cache, preserving any hand edits you'd made.
 
 ## See also
 

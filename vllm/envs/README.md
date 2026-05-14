@@ -2,7 +2,7 @@
 
 One **self-contained** file per model. `make up ENV=<name>` invokes `docker compose --env-file envs/<name>.env up -d` directly — no rolling `.env` is written. For management afterwards, pass the same `--env-file` to docker compose, or use plain `docker` against the container name.
 
-Each variant here corresponds to a model **already downloaded** on this host (under `/opt/hf/.cache/huggingface/`). Adding a new variant means first `hf download <repo>` (or letting vLLM pull on first start), then dropping a new `<name>.env` here — or run `make sync` to do it automatically based on what's on the remote.
+Each variant here corresponds to a model **already downloaded** on this host (under `/opt/hf/.cache/huggingface/`). Adding a new variant means first `hf download <repo>` (or letting vLLM pull on first start), then dropping a new `<name>.env` here — or run `make hf-sync` (from the parent dir) / `make sync` (here) to do it automatically based on what's on the remote.
 
 ## Current variants
 
@@ -38,12 +38,16 @@ This directory has its own `Makefile` for keeping the variant list in sync with 
 
 ```bash
 make list       # local variants
-make remote     # HF repos already downloaded on $(REMOTE_HOST)
-make sync       # create an env file for every remote model not yet present (never overwrites)
-make stale      # local envs whose VLLM_MODEL isn't on the remote
+make cache      # HF repos already downloaded on $(REMOTE_HOST)
+make sync       # reconcile envs against the remote:
+                #   + create envs for new remote models
+                #   ↩ restore <name>.env from <name>.env.bak when the model returns
+                #   → move <name>.env to <name>.env.bak when the model leaves
 ```
 
-Override host with `REMOTE_HOST=other.local make sync` if you ever need to.
+These targets are also exposed at the parent dir as `make hf-cache` / `make hf-sync` for convenience. Override the remote host with `REMOTE_HOST=other.local make sync` if you ever need to.
+
+`*.env.bak` is gitignored — host-local artifact of the sync's orphaning path. A subsequent `make sync` will restore the file if the corresponding model reappears in the remote cache, preserving any hand edits you'd made.
 
 ## See also
 
