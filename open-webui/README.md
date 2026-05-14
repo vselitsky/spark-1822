@@ -1,6 +1,6 @@
 # open-webui
 
-Self-hosted [Open WebUI](https://github.com/open-webui/open-webui) backed by [Ollama](https://github.com/ollama/ollama). Two-container stack — `ollama` (GPU, internal-only) and `open-webui` (UI, internal-only, exposed via [Caddy](../caddy/)).
+Self-hosted [Open WebUI](https://github.com/open-webui/open-webui) backed by [Ollama](https://github.com/ollama/ollama). Two-container stack — `ollama` (GPU) and `open-webui` (UI). Both share the single `traefik` Docker network; open-webui resolves `ollama` by name over it. External access goes through the active reverse proxy ([traefik](../traefik/) primary, [caddy](../caddy/) backup).
 
 Adapted from NVIDIA's official playbook: <https://build.nvidia.com/spark/open-webui/instructions>. Diverges in four ways: services are split (instead of the bundled `:ollama` image), images are version-pinned via `.env`, secrets live in `.env`, and the UI is fronted by Caddy on HTTPS instead of being published directly on `:8080`.
 

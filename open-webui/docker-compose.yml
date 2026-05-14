@@ -6,7 +6,6 @@ services:
     container_name: ollama
     restart: unless-stopped
     networks:
-      - internal
       - traefik
     # Traefik docker-provider labels. Inert when Caddy is the active
     # proxy (Caddy reads Caddyfile.d, not labels). When Traefik is up,
@@ -52,7 +51,6 @@ services:
       ollama:
         condition: service_healthy
     networks:
-      - internal
       - traefik
     # Traefik docker-provider labels. Inert when Caddy is the active
     # proxy (Caddy reads Caddyfile.d, not labels). When Traefik is up,
@@ -89,7 +87,8 @@ services:
         max-file: "3"
 
 networks:
-  internal:
+  # Single network shared with the active proxy (traefik or caddy) and
+  # every other stack — open-webui resolves `ollama` by name over it.
   traefik:
     external: true
     name: traefik
