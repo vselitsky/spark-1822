@@ -2,8 +2,7 @@
 SHELL := /usr/bin/env bash
 .SHELLFLAGS := -e -o pipefail -c
 
-REMOTE_HOST ?= spark-1822.local
-HF_CACHE_HOST ?= /opt/hf/.cache/huggingface
+HF_CACHE ?= /opt/hf/.cache/huggingface
 LLAMACPP_CACHE_VOL ?= llama-cpp-cache
 LLAMACPP_TAG_DEFAULT ?= server-cuda
 
@@ -12,24 +11,23 @@ LLAMACPP_TAG_DEFAULT ?= server-cuda
 help:  ## Show this help.
 	@awk 'BEGIN{FS=":.*##"} /^[a-zA-Z_-]+:.*##/{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}' $(MAKEFILE_LIST)
 	@echo
-	@echo "REMOTE_HOST=$(REMOTE_HOST)"
-	@echo "HF_CACHE_HOST=$(HF_CACHE_HOST)"
+	@echo "HF_CACHE=$(HF_CACHE)"
 	@echo "LLAMACPP_CACHE_VOL=$(LLAMACPP_CACHE_VOL)"
 
 list:  ## List local variants under envs/.
 	@ls *.env 2>/dev/null | sed 's/\.env$$//' | sort
 
-cache:  ## Show GGUF files already on the remote host (llama-cpp-cache vol + HF cache).
+cache:  ## Show GGUF files in the local caches (llama-cpp-cache vol + HF cache).
 	@echo "# in docker volume $(LLAMACPP_CACHE_VOL):"
-	@ssh $(REMOTE_HOST) "docker run --rm -v $(LLAMACPP_CACHE_VOL):/d alpine sh -c 'ls /d/*.gguf 2>/dev/null'" \
+	@docker run --rm -v $(LLAMACPP_CACHE_VOL):/d alpine sh -c 'ls /d/*.gguf 2>/dev/null' \
 	    | sed 's|.*/||; s|^|  |' || true
-	@echo "# in $(HF_CACHE_HOST):"
-	@ssh $(REMOTE_HOST) 'find $(HF_CACHE_HOST) -name "*.gguf" 2>/dev/null' \
+	@echo "# in $(HF_CACHE):"
+	@find $(HF_CACHE) -name "*.gguf" 2>/dev/null \
 	    | sed 's|^|  |' || true
 
-sync:  ## Reconcile envs against the remote GGUF inventory: create new, restore from .bak, orphan to .bak.
-	@gguf_vol=$$(ssh $(REMOTE_HOST) "docker run --rm -v $(LLAMACPP_CACHE_VOL):/d alpine sh -c 'ls /d/*.gguf 2>/dev/null'" | sed 's|.*/||' | sort -u); \
-	gguf_hf=$$(ssh $(REMOTE_HOST) 'find $(HF_CACHE_HOST) -name "*.gguf" 2>/dev/null' | sort -u); \
+sync:  ## Reconcile envs against the local GGUF inventory: create new, restore from .bak, orphan to .bak.
+	@gguf_vol=$$(docker run --rm -v $(LLAMACPP_CACHE_VOL):/d alpine sh -c 'ls /d/*.gguf 2>/dev/null' | sed 's|.*/||' | sort -u); \
+	gguf_hf=$$(find $(HF_CACHE) -name "*.gguf" 2>/dev/null | sort -u); \
 	created=0; restored=0; orphaned=0; \
 	for gguf in $$gguf_vol; do \
 	    short=$$(echo "$$gguf" | sed -e 's/\.gguf$$//' -e 's/-MXFP4.*//' -e 's/-Q[0-9].*//' -e 's/-IQ[0-9].*//' | tr 'A-Z' 'a-z'); \
@@ -46,11 +44,11 @@ sync:  ## Reconcile envs against the remote GGUF inventory: create new, restore 
 	    else \
 	        printf '+ create  %s — MODEL_PATH=%s\n' "$$file" "$$in_container"; \
 	        { \
-	            echo "# $$gguf · in docker volume $(LLAMACPP_CACHE_VOL) on the remote host."; \
+	            echo "# $$gguf · in docker volume $(LLAMACPP_CACHE_VOL) on this host."; \
 	            echo "# Self-contained — \`make up ENV=$$short-hf\` uses this directly."; \
 	            echo ""; \
 	            echo "LLAMACPP_TAG=$(LLAMACPP_TAG_DEFAULT)"; \
-	            echo "HF_CACHE_HOST=$(HF_CACHE_HOST)"; \
+	            echo "HF_CACHE_HOST=$(HF_CACHE)"; \
 	            echo "HF_TOKEN="; \
 	            echo ""; \
 	            echo "MODEL_PATH=$$in_container"; \
@@ -65,7 +63,7 @@ sync:  ## Reconcile envs against the remote GGUF inventory: create new, restore 
 	    base=$$(basename "$$fp"); \
 	    short=$$(echo "$$base" | sed -e 's/\.gguf$$//' -e 's/-MXFP4.*//' -e 's/-Q[0-9].*//' -e 's/-IQ[0-9].*//' | tr 'A-Z' 'a-z'); \
 	    file="$$short-hfcache.env"; \
-	    in_container=$$(echo "$$fp" | sed 's|^$(HF_CACHE_HOST)|/root/.cache/huggingface|'); \
+	    in_container=$$(echo "$$fp" | sed 's|^$(HF_CACHE)|/root/.cache/huggingface|'); \
 	    if grep -lE "^MODEL_PATH=.*$$base" *.env 2>/dev/null | head -1 >/dev/null; then \
 	        :; \
 	    elif [[ -f "$$file.bak" ]] && grep -qE "^MODEL_PATH=.*$$base" "$$file.bak"; then \
@@ -77,11 +75,11 @@ sync:  ## Reconcile envs against the remote GGUF inventory: create new, restore 
 	    else \
 	        printf '+ create  %s — MODEL_PATH=%s\n' "$$file" "$$in_container"; \
 	        { \
-	            echo "# $$base · in $(HF_CACHE_HOST) on the remote host."; \
+	            echo "# $$base · in $(HF_CACHE) on this host."; \
 	            echo "# Self-contained — \`make up ENV=$$short-hfcache\` uses this directly."; \
 	            echo ""; \
 	            echo "LLAMACPP_TAG=$(LLAMACPP_TAG_DEFAULT)"; \
-	            echo "HF_CACHE_HOST=$(HF_CACHE_HOST)"; \
+	            echo "HF_CACHE_HOST=$(HF_CACHE)"; \
 	            echo "HF_TOKEN="; \
 	            echo ""; \
 	            echo "MODEL_PATH=$$in_container"; \
@@ -105,7 +103,7 @@ sync:  ## Reconcile envs against the remote GGUF inventory: create new, restore 
 	                orphaned=$$((orphaned + 1)); \
 	            fi;; \
 	        /root/.cache/huggingface/*) \
-	            host_path=$$(echo "$$p" | sed 's|^/root/.cache/huggingface|$(HF_CACHE_HOST)|'); \
+	            host_path=$$(echo "$$p" | sed 's|^/root/.cache/huggingface|$(HF_CACHE)|'); \
 	            if ! grep -qFx "$$host_path" <<<"$$gguf_hf"; then \
 	                printf '→ orphan  %s → %s.bak\n' "$$f" "$$f"; \
 	                mv "$$f" "$$f.bak"; \

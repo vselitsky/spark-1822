@@ -19,8 +19,8 @@ help:  ## Show this help.
 	@echo "  make up ENV=<name>              — start $(SERVICE) with that env"
 	@echo
 	@echo "HF-cache maintenance (forwards to envs/Makefile):"
-	@echo "  make hf-cache                   — list HF repos already downloaded on the remote"
-	@echo "  make hf-sync                    — reconcile envs against the remote (create / restore / orphan to .bak)"
+	@echo "  make hf-cache                   — list HF repos already downloaded in the HF cache"
+	@echo "  make hf-sync                    — reconcile envs against the HF cache (create / restore / orphan to .bak)"
 	@echo
 	@echo "For management, invoke docker compose directly. The compose file"
 	@echo "uses required vars (e.g. \$${VLLM_TAG:?...}), so pass --env-file:"
@@ -48,8 +48,8 @@ up:  ## Start with the given variant. No .env is written. Usage: make up ENV=<na
 	fi
 	$(COMPOSE) --env-file "envs/$(ENV).env" up -d
 
-hf-cache:  ## List HF repos already downloaded on the remote host.
+hf-cache:  ## List HF repos already downloaded in this host's HF cache.
 	@$(MAKE) -C envs --no-print-directory cache
 
-hf-sync:  ## Reconcile envs against the remote HF cache (create / restore from .bak / orphan to .bak).
+hf-sync:  ## Reconcile envs against the HF cache (create / restore from .bak / orphan to .bak).
 	@$(MAKE) -C envs --no-print-directory sync
