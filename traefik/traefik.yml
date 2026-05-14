@@ -50,6 +50,38 @@ providers:
     directory: /etc/traefik/dynamic
     watch: true         # hot-reload on dynamic/*.yml changes
 
+# ─── LetsEncrypt (scaffolded; activate when this host gets a public DNS) ──
+# LE can't issue certs for `.local` mDNS names — it needs a publicly-
+# resolvable domain. When you have one (e.g., `spark.example.com`),
+# uncomment ONE of the challenge blocks below, drop in your email, and
+# mount the acme volume in docker-compose.yml. Then per-route opt-in via
+# a label on the relevant service:
+#
+#   - "traefik.http.routers.<name>.tls.certresolver=letsencrypt"
+#
+# Internal .local routes keep using the wildcard from dynamic/tls.yml —
+# both cert sources coexist.
+#
+# certificatesResolvers:
+#   letsencrypt:
+#     acme:
+#       email: REPLACE@example.com
+#       storage: /etc/traefik/acme/acme.json
+#       # Pick ONE challenge:
+#       #
+#       # http-01 — needs port 80 reachable from the public internet
+#       # (port forward on your router, or run on a host with a public IP):
+#       httpChallenge:
+#         entryPoint: web
+#       #
+#       # dns-01 — no inbound ports needed; required for wildcard certs.
+#       # Set the provider's API token in the traefik container env (e.g.
+#       # CF_DNS_API_TOKEN for Cloudflare). Full list:
+#       # https://doc.traefik.io/traefik/https/acme/#providers
+#       # dnsChallenge:
+#       #   provider: cloudflare
+#       #   delayBeforeCheck: 30s
+
 log:
   level: INFO
 

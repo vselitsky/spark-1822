@@ -105,6 +105,22 @@ Bring the app up — Traefik picks up the labels live (docker provider has `watc
 
 For containers that **can't** be label-discovered (host-network mode, external services), drop a router + service into `dynamic/services.yml` instead. The file provider has `watch: true` too.
 
+## LetsEncrypt (publicly-trusted certs)
+
+The wildcard cert above is signed by Caddy's internal CA — fine for LAN clients that trust `caddy-root.crt`, but every other browser will warn. If you ever expose this host on a **publicly-resolvable domain** (e.g. `spark.example.com`), LE can issue real, publicly-trusted certs.
+
+The scaffolding is already in place — three blocks to uncomment + edit, in order:
+
+1. **`traefik.yml`** — uncomment the `certificatesResolvers.letsencrypt.acme` block, set your email, and pick one challenge (`http-01` if port 80 is reachable from the public internet; `dns-01` if your DNS provider has an API token and you want wildcards).
+2. **`docker-compose.yml`** — uncomment the `- traefik-acme:/etc/traefik/acme` volume mount and the matching `traefik-acme:` named-volume block. (For `dns-01`, also add the provider's API token as an env var.)
+3. **Per-route opt-in** — on whichever service should use LE, add the label:
+   ```yaml
+   - "traefik.http.routers.<name>.tls.certresolver=letsencrypt"
+   ```
+   Services without that label keep using the internal wildcard. Both cert sources coexist.
+
+LE will not issue for `.local` names — that's why opt-in is per-route rather than the default.
+
 ## Logs
 
 ```bash

@@ -20,6 +20,10 @@ services:
       # discover labelled services. Mount is :ro — Traefik only reads
       # container metadata, never controls them.
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # LetsEncrypt state (acme.json: private keys + issued certs).
+      # Uncomment + uncomment the matching block in traefik.yml when
+      # this host gets a public DNS. Until then, the volume sits unused.
+      # - traefik-acme:/etc/traefik/acme
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/ping"]
       interval: 30s
@@ -43,3 +47,10 @@ networks:
   caddy:
     external: true
     name: caddy
+
+# Volume for LetsEncrypt state (acme.json). Held in a docker volume so
+# the private keys never land on disk under /opt. Unused until the
+# letsencrypt resolver in traefik.yml is uncommented.
+# volumes:
+#   traefik-acme:
+#     name: traefik-acme
