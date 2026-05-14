@@ -10,8 +10,6 @@ SERVICE := llama-cpp
 COMPOSE := docker compose -f docker-compose.yml
 HF_CACHE ?= /opt/hf/.cache/huggingface
 LLAMACPP_CACHE_VOL ?= llama-cpp-cache
-LLAMACPP_TAG_DEFAULT ?= server-cuda
-
 .PHONY: help list up hf-cache hf-sync
 
 help:  ## Show this help.

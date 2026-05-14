@@ -75,17 +75,21 @@ docker compose down
 
 ### Pinning the image
 
-The arm64 + CUDA build is published only under the floating `server-cuda` tag. To pin to a specific build by content digest of the multi-arch manifest list:
+The `ggml-org/llama.cpp` registry publishes a per-build tag for each upstream commit — `server-cuda-b<NNNN>` for the CUDA-server / multi-arch image. Per-build tags are immutable on the registry, so just pinning the tag is enough; no digest-pin needed.
+
+Browse builds at <https://github.com/ggml-org/llama.cpp/pkgs/container/llama.cpp> (filter to tags starting with `server-cuda-b`) and set `LLAMACPP_TAG=server-cuda-b<NNNN>` in `.env`.
+
+If you want belt-and-suspenders digest pinning (e.g. to guard against a hypothetical registry compromise), resolve the manifest digest for that specific tag:
 
 ```bash
 TOK=$(curl -s 'https://ghcr.io/token?service=ghcr.io&scope=repository:ggml-org/llama.cpp:pull' | jq -r .token)
 curl -sI -H "Authorization: Bearer $TOK" \
     -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
-    'https://ghcr.io/v2/ggml-org/llama.cpp/manifests/server-cuda' \
+    "https://ghcr.io/v2/ggml-org/llama.cpp/manifests/server-cuda-b9151" \
     | grep -i docker-content-digest
 ```
 
-Set `LLAMACPP_TAG=server-cuda@<that-digest>` in the variant file (`envs/<name>.env`).
+Then set `LLAMACPP_TAG=server-cuda-b9151@<that-digest>`.
 
 ## Deploy
 
@@ -154,7 +158,7 @@ Use `MODEL_URL=<https://…>` instead of `MODEL_PATH`. llama.cpp downloads the f
 
 ## Upgrade
 
-Resolve the current `server-cuda` digest (snippet above), bump `LLAMACPP_TAG` in the variant file (`envs/<name>.env`), then:
+Bump `LLAMACPP_TAG` in `.env` to a newer build (e.g. `server-cuda-b<NNNN>` — see "Pinning the image" above for browsing builds), then:
 
 ```bash
 docker compose --env-file envs/<name>.env pull   # resolve image tag from the variant
