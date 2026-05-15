@@ -14,10 +14,18 @@ services:
       - TS_HOSTNAME=${TS_HOSTNAME}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=true
+      # TS_SERVE_CONFIG points at the mounted JSON. The image substitutes
+      # ${TS_CERT_DOMAIN} inside the JSON at startup with the node's MagicDNS
+      # hostname (e.g. spark-1822.<tailnet>.ts.net). Tailscale Serve terminates
+      # TLS on tailnet :443 and reverse-proxies everything to http://traefik:80.
+      - TS_SERVE_CONFIG=/config/serve.json
+    networks:
+      - traefik
     volumes:
       # Node key + machine state lives in a docker volume so secrets stay
       # out of /opt (which is the git working tree on the host).
       - tailscale-state:/var/lib/tailscale
+      - ./serve.json:/config/serve.json:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "tailscale", "status", "--peers=false"]
@@ -32,6 +40,14 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  # Shared front-end network owned by the `traefik/` stack — must already
+  # exist (bring `traefik/` up at least once, or `docker network create
+  # traefik --attachable`).
+  traefik:
+    external: true
+    name: traefik
 
 volumes:
   tailscale-state:

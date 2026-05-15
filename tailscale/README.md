@@ -1,11 +1,6 @@
 # tailscale
 
-[Tailscale](https://tailscale.com/) sidecar that registers this host as a node on your tailnet. Two modes — pick one at deploy time:
-
-- **Plain mode** — just the sidecar, no upstream wiring. The node shows up in the admin console, MagicDNS publishes `<TS_HOSTNAME>.<tailnet>.ts.net`, but nothing is served. Useful as a beachhead before you decide what to expose.
-- **Traefik-wired mode** *(default)* — Tailscale Serve terminates TLS on the tailnet's `:443` and reverse-proxies all traffic to `http://traefik:80`, so every backend that Traefik already routes is reachable over the tailnet without opening any host port.
-
-Mode is selected by which compose files you stack — the wiring lives in `docker-compose.traefik.yml`, an overlay you opt into with `-f`. Drop the overlay to fall back to plain mode.
+[Tailscale](https://tailscale.com/) sidecar that registers this host as a node on your tailnet and runs [Tailscale Serve](https://tailscale.com/kb/1242/tailscale-serve) to terminate TLS on tailnet `:443` and reverse-proxy all traffic to `http://traefik:80`. Every backend Traefik already routes becomes reachable over the tailnet without opening any host port.
 
 Based on Tailscale's [Connect a Docker container](https://tailscale.com/docs/features/containers/docker/how-to/connect-docker-container) guide, adapted to this repo's conventions (pinned image tag in `.env`, named state volume, traefik network).
 
@@ -13,9 +8,8 @@ Based on Tailscale's [Connect a Docker container](https://tailscale.com/docs/fea
 
 ```
 tailscale/
-├── docker-compose.yml          # base sidecar (plain mode)
-├── docker-compose.traefik.yml  # overlay that wires Serve → traefik (committed; activate with -f)
-├── serve.json                  # Tailscale Serve config, mounted by the overlay
+├── docker-compose.yml          # tailscale sidecar, joined to the traefik network, Serve config mounted
+├── serve.json                  # Tailscale Serve config — TLS on :443, proxy / → http://traefik:80
 ├── .env.example                # committed; copy to .env and fill in
 └── .env                        # not committed (gitignored)
 ```
@@ -43,33 +37,14 @@ cp .env.example .env
 
 ## Deploy
 
-### Traefik-wired mode (default)
-
 Prereq: the shared `traefik` Docker network exists. (Bring `traefik/` up at least once, or `docker network create traefik --attachable`.)
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+docker compose up -d
 docker compose logs -f tailscale    # confirm "Success." and the node URL
 ```
 
 The node appears in the admin console under **Machines**. MagicDNS publishes it at `https://<TS_HOSTNAME>.<tailnet>.ts.net` — any tailnet-connected device can reach it. TLS uses Tailscale's auto-provisioned MagicDNS cert; no client-side root install needed.
-
-### Plain mode (no upstream)
-
-```bash
-docker compose up -d
-```
-
-Node registers and stays online, but nothing is served on `:443`. Switch to wired mode any time by re-running with both `-f` files.
-
-### Disable the traefik wiring (quick)
-
-```bash
-docker compose down
-docker compose up -d                # plain mode (drops the overlay)
-```
-
-Compose remembers the active file set from the last `up`, so omitting the `-f` flags on subsequent commands targets the plain-mode stack.
 
 ## How it works
 
@@ -86,7 +61,7 @@ tailnet client  ──(https, MagicDNS cert)──>  tailscale (:443 on tailnet)
 ```
 
 - The Tailscale daemon runs in userspace mode (no `/dev/net/tun`, no privileged caps) and registers as one node on your tailnet using `TS_AUTHKEY`.
-- The overlay enables [Tailscale Serve](https://tailscale.com/kb/1242/tailscale-serve), pointed at `serve.json`. The container substitutes `${TS_CERT_DOMAIN}` with the node's MagicDNS hostname at startup, then terminates TLS on `:443` with a real publicly-trusted cert.
+- [Tailscale Serve](https://tailscale.com/kb/1242/tailscale-serve) is configured via the mounted `serve.json`. The container substitutes `${TS_CERT_DOMAIN}` with the node's MagicDNS hostname at startup, then terminates TLS on `:443` with a real publicly-trusted cert.
 - All decrypted HTTP is forwarded to `http://traefik:80`. Traefik routes by `Host` header to whichever backend matches.
 - State (node key, machine identity) lives in a named docker volume `tailscale-state`, not under `/opt` — so the host's git working tree stays free of secrets.
 
@@ -126,16 +101,14 @@ docker exec tailscale tailscale status
 Bump `TAILSCALE_TAG` in `.env`, then:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.traefik.yml pull
-docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+docker compose pull
+docker compose up -d
 ```
-
-(Drop the `-f docker-compose.traefik.yml` part if running in plain mode.)
 
 ## Uninstall
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.traefik.yml down
+docker compose down
 docker volume rm tailscale-state    # also discard the node key + machine state
 ```
 
@@ -226,7 +199,7 @@ Recommended baseline: **1 + 3 + 4** as a single hardening pass. **2 (OAuth)** is
 ## See also
 
 - Top-level [README](../README.md)
-- [`traefik/`](../traefik/) — the proxy the overlay wires into
+- [`traefik/`](../traefik/) — the proxy this sidecar fronts
 - [`cloudflare/`](../cloudflare/) — the other edge-ingress stack in this repo, structurally analogous (also tunnels into traefik over an outbound-only connection)
 - Tailscale Docker guide: <https://tailscale.com/docs/features/containers/docker/how-to/connect-docker-container>
 - Tailscale Serve docs: <https://tailscale.com/kb/1242/tailscale-serve>
