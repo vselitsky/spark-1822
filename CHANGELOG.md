@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 ### Changed
 
 - `llama-cpp/.env.example` + `entrypoint.sh` + the `hf-sync` per-variant template: default `CTX_SIZE` 8192 → 32768. Matches what most contemporary 27B–120B GGUFs handle comfortably without YaRN tricks; per-variant overrides still win (uncomment `CTX_SIZE=…` in `envs/<name>.env`).
+- `vllm/.env.example` + `entrypoint.sh` + the `hf-sync` per-variant template: default `VLLM_MAX_LEN` 8192 → 32768 (same rationale as llama-cpp).
 
 ### Security
 

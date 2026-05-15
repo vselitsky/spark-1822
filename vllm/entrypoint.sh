@@ -11,7 +11,7 @@ args=(
     --host                   "${LISTEN_HOST:-0.0.0.0}"
     --port                   "${LISTEN_PORT:-8000}"
     --gpu-memory-utilization "${VLLM_GPU_MEM:-0.9}"
-    --max-model-len          "${VLLM_MAX_LEN:-8192}"
+    --max-model-len          "${VLLM_MAX_LEN:-32768}"
     # Tool-calling: `qwen3_xml` parses the XML tool-call format that
     # Qwen3.x emits: <tool_call><function=NAME><parameter=PARAM>VAL
     # </parameter></function></tool_call>. The other Qwen parser,

@@ -83,7 +83,7 @@ hf-sync:  ## Reconcile envs against the HF cache: create new, restore from .bak,
 	            echo ""; \
 	            echo "# Optional per-variant overrides — uncomment to use."; \
 	            echo "# VLLM_GPU_MEM=0.9"; \
-	            echo "# VLLM_MAX_LEN=8192"; \
+	            echo "# VLLM_MAX_LEN=32768"; \
 	        } > "$$file"; \
 	        created=$$((created + 1)); \
 	    fi; \
