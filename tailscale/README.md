@@ -143,7 +143,7 @@ Auth keys are accepted but discouraged for persistent nodes — they expire (90-
 
 ```bash
 # .env
-TS_AUTHKEY=tskey-client-XXXXX-OAUTH-SECRET?preauthorized=true&ephemeral=false
+TS_AUTHKEY=tskey-client-<your-oauth-client-secret>?preauthorized=true&ephemeral=false
 ```
 
 Tradeoff: one-time setup cost in the dashboard. Bigger lift than (1) — this is a real provisioning decision, not just a refactor.
