@@ -22,7 +22,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.llama.rule=Host(`llama.spark-1822.local`)"
+      - "traefik.http.routers.llama.rule=Host(`llama.spark-1822.local`) || Host(`spark-1822.cuscus-macaroni.ts.net`)"
       - "traefik.http.routers.llama.entryPoints=websecure"
       - "traefik.http.routers.llama.tls=true"
       - "traefik.http.services.llama.loadbalancer.server.port=8080"

@@ -65,24 +65,22 @@ tailnet client  ──(https, MagicDNS cert)──>  tailscale (:443 on tailnet)
 - All decrypted HTTP is forwarded to `http://traefik:80`. Traefik routes by `Host` header to whichever backend matches.
 - State (node key, machine identity) lives in a named docker volume `tailscale-state`, not under `/opt` — so the host's git working tree stays free of secrets.
 
-### Host-header routing caveat
+### Host-header routing — applied
 
-Tailscale Serve forwards requests with the **original** Host header — i.e. `spark-1822.<tailnet>.ts.net`. Traefik's existing routers match on `*.spark-1822.local` (the mDNS LAN names), so out of the box, hitting the tailnet URL gets a Traefik 404.
+Tailscale Serve forwards requests with the **original** Host header — i.e. `spark-1822.cuscus-macaroni.ts.net`. Out of the box, Traefik's routers match only on `*.spark-1822.local` (the mDNS LAN names), so hitting the tailnet URL would 404.
 
-Two ways to fix per-service:
+Fix applied: every existing router has the tailnet hostname appended to its `rule=` clause via `|| Host(\`spark-1822.cuscus-macaroni.ts.net\`)`. Six routers in total — `ollama`, `open-webui`, `vllm`, `llama` (label-based in each app's compose), plus `netdata` and `traefik` (file-based in `traefik/dynamic/services.yml`).
 
-1. **Add the tailnet hostname to existing routers** (preferred). In the backend's compose, extend the `traefik.http.routers.<name>.rule` label:
+```yaml
+# example, open-webui/docker-compose.yml
+- "traefik.http.routers.open-webui.rule=Host(`open-webui.spark-1822.local`) || Host(`spark-1822.cuscus-macaroni.ts.net`)"
+```
 
-   ```yaml
-   # before
-   - "traefik.http.routers.open-webui.rule=Host(`open-webui.spark-1822.local`)"
-   # after — same router answers on both names
-   - "traefik.http.routers.open-webui.rule=Host(`open-webui.spark-1822.local`) || Host(`spark-1822.<your-tailnet>.ts.net`)"
-   ```
+Consequence: a single node has one tailnet hostname, so all six routers now match the *same* tailnet Host. Traefik resolves the conflict by router priority, which defaults to **rule length** — longest rule wins. With the current rules, `open-webui` (longest subdomain prefix) wins, so `https://spark-1822.cuscus-macaroni.ts.net/` lands on Open WebUI. The other five services remain reachable only via their LAN mDNS URLs.
 
-   The catch: a single node has one tailnet hostname, so every backend on this host shares it. If you want per-backend tailnet URLs, see option 2 or use Tailscale's [HTTPS subdomains](https://tailscale.com/kb/1153/enabling-https) feature.
+If a different service should be the tailnet default, override priority on its router — either `traefik.http.routers.<name>.priority=1000` as a label, or `priority: 1000` in `dynamic/services.yml`. Higher number wins.
 
-2. **Path-based Serve handlers**. Edit `serve.json` to mount each backend under a path prefix, and have Traefik route by path instead of Host. More work and breaks the `*.spark-1822.local` convention, so usually option 1 is the right call.
+For per-backend tailnet URLs (e.g. `vllm.<tailnet>.ts.net`), see [Tailscale's HTTPS subdomains](https://tailscale.com/kb/1153/enabling-https) — separate setup, not in scope here.
 
 ## Logs
 

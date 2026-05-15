@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 - `vllm/.env.example` + `entrypoint.sh` + the `hf-sync` per-variant template: default `VLLM_MAX_LEN` 8192 → 32768 (same rationale as llama-cpp).
 - Top-level `README.md`: `tailscale/` added to the intro bullets, Topology diagram (three ingress paths now), Layout tree, Components table, and First-time setup (new optional step 6, mirroring the Cloudflare Tunnel step).
 - Trivy: `tailscale/tailscale` added to the image-scan matrix. `extract-tags` now reads `TAILSCALE_TAG` from `tailscale/.env.example` (same strict regex as the other tags). `trivy.md` jobs table updated to list the new image.
+- Every Traefik router that matched a `*.spark-1822.local` LAN hostname now *also* matches the tailnet hostname `spark-1822.cuscus-macaroni.ts.net` — the single node hostname Tailscale Serve forwards under. Six routers extended: `ollama`, `open-webui`, `vllm`, `llama` (label-based, in each app's compose) and `netdata`, `traefik` (file-based, in `traefik/dynamic/services.yml`). Because all six share the one tailnet Host, Traefik resolves the conflict by default rule-length priority — `open-webui` wins, so `https://spark-1822.cuscus-macaroni.ts.net/` lands on Open WebUI. Other services stay reachable on their LAN mDNS URLs. `tailscale/README.md` "Host-header routing" section updated to record the applied state and how to override priority for a different default.
 
 ### Security
 

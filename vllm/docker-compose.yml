@@ -23,7 +23,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.vllm.rule=Host(`vllm.spark-1822.local`)"
+      - "traefik.http.routers.vllm.rule=Host(`vllm.spark-1822.local`) || Host(`spark-1822.cuscus-macaroni.ts.net`)"
       - "traefik.http.routers.vllm.entryPoints=websecure"
       - "traefik.http.routers.vllm.tls=true"
       - "traefik.http.services.vllm.loadbalancer.server.port=8000"
