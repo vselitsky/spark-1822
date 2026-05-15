@@ -74,6 +74,8 @@ hf-sync:  ## Reconcile envs against this host's GGUF inventory: create new, rest
 	cd envs; \
 	created=0; restored=0; orphaned=0; \
 	for gguf in $$gguf_vol; do \
+	    part=$$(echo "$$gguf" | sed -nE 's/.*-0*([0-9]+)-of-[0-9]+\.gguf$$/\1/p'); \
+	    if [[ -n "$$part" && "$$part" != "1" ]]; then continue; fi; \
 	    short=$$(echo "$$gguf" | sed -e 's/\.gguf$$//' -e 's/-MXFP4.*//' -e 's/-Q[0-9].*//' -e 's/-IQ[0-9].*//' | tr 'A-Z' 'a-z'); \
 	    file="$$short-hf.env"; \
 	    in_container="/root/.cache/llama.cpp/$$gguf"; \
@@ -105,6 +107,8 @@ hf-sync:  ## Reconcile envs against this host's GGUF inventory: create new, rest
 	done; \
 	for fp in $$gguf_hf; do \
 	    base=$$(basename "$$fp"); \
+	    part=$$(echo "$$base" | sed -nE 's/.*-0*([0-9]+)-of-[0-9]+\.gguf$$/\1/p'); \
+	    if [[ -n "$$part" && "$$part" != "1" ]]; then continue; fi; \
 	    short=$$(echo "$$base" | sed -e 's/\.gguf$$//' -e 's/-MXFP4.*//' -e 's/-Q[0-9].*//' -e 's/-IQ[0-9].*//' | tr 'A-Z' 'a-z'); \
 	    file="$$short-hfcache.env"; \
 	    in_container=$$(echo "$$fp" | sed 's|^$(HF_CACHE)|/root/.cache/huggingface|'); \
