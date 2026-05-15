@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 - `llama-cpp/.env.example` + `entrypoint.sh` + the `hf-sync` per-variant template: default `CTX_SIZE` 8192 → 32768. Matches what most contemporary 27B–120B GGUFs handle comfortably without YaRN tricks; per-variant overrides still win (uncomment `CTX_SIZE=…` in `envs/<name>.env`).
 - `vllm/.env.example` + `entrypoint.sh` + the `hf-sync` per-variant template: default `VLLM_MAX_LEN` 8192 → 32768 (same rationale as llama-cpp).
 - Top-level `README.md`: `tailscale/` added to the intro bullets, Topology diagram (three ingress paths now), Layout tree, Components table, and First-time setup (new optional step 6, mirroring the Cloudflare Tunnel step).
+- Trivy: `tailscale/tailscale` added to the image-scan matrix. `extract-tags` now reads `TAILSCALE_TAG` from `tailscale/.env.example` (same strict regex as the other tags). `trivy.md` jobs table updated to list the new image.
 
 ### Security
 
