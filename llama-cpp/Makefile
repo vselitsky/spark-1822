@@ -50,13 +50,23 @@ up:  ## Start with the given variant. Usage: make up ENV=<name>
 	fi
 	$(COMPOSE) --env-file .env --env-file "envs/$(ENV).env" up -d
 
-hf-cache:  ## List GGUF files in this host's caches (llama-cpp-cache vol + HF cache).
-	@echo "# in docker volume $(LLAMACPP_CACHE_VOL):"
+hf-cache:  ## List cached models — GGUFs in llama-cpp-cache vol + every HF repo in HF cache (annotated by format).
+	@echo "# in docker volume $(LLAMACPP_CACHE_VOL) — usable by llama-cpp:"
 	@docker run --rm -v $(LLAMACPP_CACHE_VOL):/d alpine sh -c 'ls /d/*.gguf 2>/dev/null' \
 	    | sed 's|.*/||; s|^|  |' || true
-	@echo "# in $(HF_CACHE):"
-	@find $(HF_CACHE) -name "*.gguf" 2>/dev/null \
-	    | sed 's|^|  |' || true
+	@echo
+	@echo "# in $(HF_CACHE) — populated by \`hf download\` / vllm; usable by llama-cpp only when GGUF is present:"
+	@shopt -s nullglob; \
+	for d in $(HF_CACHE)/hub/models--*/; do \
+	    repo=$$(basename "$$d" | sed 's|^models--||; s|--|/|'); \
+	    gg=$$(find "$$d" -name "*.gguf" 2>/dev/null | wc -l); \
+	    st=$$(find "$$d" -name "*.safetensors" 2>/dev/null | wc -l); \
+	    if [[ $$gg -gt 0 ]]; then \
+	        printf "  %-60s [%d GGUF — llama-cpp can load]\n" "$$repo" "$$gg"; \
+	    else \
+	        printf "  %-60s [%d safetensors — vllm only]\n" "$$repo" "$$st"; \
+	    fi; \
+	done
 
 hf-sync:  ## Reconcile envs against this host's GGUF inventory: create new, restore from .bak, orphan to .bak.
 	@gguf_vol=$$(docker run --rm -v $(LLAMACPP_CACHE_VOL):/d alpine sh -c 'ls /d/*.gguf 2>/dev/null' | sed 's|.*/||' | sort -u); \
