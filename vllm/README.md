@@ -1,6 +1,6 @@
 # vllm
 
-[vLLM](https://github.com/vllm-project/vllm) inference server. Serves an [OpenAI-compatible API](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html) at `https://vllm.${CADDY_DOMAIN}` (fronted by [`caddy/`](../caddy/)).
+[vLLM](https://github.com/vllm-project/vllm) inference server. Serves an [OpenAI-compatible API](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html) at `https://vllm.spark-1822.local` (fronted by [`traefik/`](../traefik/); the rule accepts any `vllm.spark*.<domain>`, so the same backend also answers on the tailnet or any Cloudflare Tunnel public hostname).
 
 vLLM complements [`llama-cpp/`](../llama-cpp/): use llama.cpp for GGUF files (smaller, CPU-friendly quantizations), vLLM for HF-native models (safetensors) and high-throughput serving with continuous batching + PagedAttention.
 
@@ -15,7 +15,7 @@ Smoke-tested on GB10 (compute capability 12.1) with `Qwen/Qwen3.6-27B` at `--max
 
 ## Topology
 
-Single container on the shared `traefik` Docker network (defined by the `traefik/` stack; Caddy joins the same network as backup). Whichever proxy is up reaches the container over that network for external traffic. The container also publishes its API on the host's loopback interface at `127.0.0.1:8000` for direct host-side curl/benchmarks — not reachable from the LAN. Set `HOST_PORT=<n>` in the variant file if 8000 is taken. The host's HuggingFace cache is bind-mounted read-write so vLLM and the `hf` CLI share the same downloads. Models come from HuggingFace by repo ID — vLLM loads safetensors directly.
+Single container on the shared `traefik` Docker network (defined by the `traefik/` stack). Traefik reaches the container over that network for external traffic. The container also publishes its API on the host's loopback interface at `127.0.0.1:8000` for direct host-side curl/benchmarks — not reachable from the LAN. Set `HOST_PORT=<n>` in the variant file if 8000 is taken. The host's HuggingFace cache is bind-mounted read-write so vLLM and the `hf` CLI share the same downloads. Models come from HuggingFace by repo ID — vLLM loads safetensors directly.
 
 ### GPU exclusivity
 
@@ -67,7 +67,7 @@ docker compose down
 
 ## Deploy
 
-Prereq: a proxy stack (`traefik/` primary, or `caddy/` backup) running on `:80`/`:443`. The shared `traefik` Docker network must exist (owned by `traefik/`).
+Prereq: `traefik/` running on `:80`/`:443`. The shared `traefik` Docker network must exist (owned by `traefik/`).
 
 ```bash
 make list                                # show available variants
@@ -142,6 +142,6 @@ docker compose down
 ## See also
 
 - Top-level [README](../README.md)
-- [`caddy/`](../caddy/) — reverse proxy in front of this server
+- [`traefik/`](../traefik/) — reverse proxy in front of this server
 - [`llama-cpp/`](../llama-cpp/) — sibling inference stack for GGUF models
 - vLLM docs: <https://docs.vllm.ai/>

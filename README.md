@@ -8,7 +8,7 @@ Configuration for the [NVIDIA DGX Spark](https://amzn.to/47ZeWqZ) workstation `s
 
 - **vLLM** and **llama.cpp** for inference (HF safetensors and GGUF respectively, both GPU-accelerated on the GB10).
 - **Open WebUI + Ollama** for the chat UI.
-- **Traefik** (primary, docker-label-driven) or **Caddy** (backup, Caddyfile-driven) as the HTTPS reverse proxy in front of everything — pick one at a time.
+- **Traefik** as the HTTPS reverse proxy in front of everything (docker-label-driven, mints its own internal CA).
 - **Cloudflare Tunnel** for outbound-only public ingress (no inbound ports on the host).
 - **Tailscale** sidecar for tailnet-only ingress (peer-to-peer over WireGuard; no public DNS, no public ports).
 - **Netdata** for real-time observability.
@@ -27,14 +27,13 @@ tailnet client  ──(MagicDNS, WireGuard)──>  tailscale :443  ──>  tra
 
 Backends (`vllm`, `llama-cpp`, `open-webui`, `ollama`, `netdata`) all sit on a single shared Docker network named `traefik` — defined by the `traefik/` stack, joined as `external: true` by everyone else. The active proxy and both tunnel/sidecar connectors each attach to the same network and dial container names directly.
 
-TLS comes from four different roots: Traefik and Caddy each mint their own internal CA (clients install the corresponding `*-root.crt` once); Cloudflare provides publicly-trusted certs at its edge for the tunnel hostnames; Tailscale auto-provisions publicly-trusted MagicDNS certs for the tailnet hostname.
+TLS comes from three different roots: Traefik mints its own internal CA (clients install `traefik-root.crt` once); Cloudflare provides publicly-trusted certs at its edge for the tunnel hostnames; Tailscale auto-provisions publicly-trusted MagicDNS certs for the tailnet hostname.
 
 ## Layout
 
 ```
 .
-├── traefik/       # HTTPS reverse proxy — primary (docker-label-driven)
-├── caddy/         # HTTPS reverse proxy — backup (Caddyfile-driven)
+├── traefik/       # HTTPS reverse proxy (docker-label-driven)
 ├── cloudflare/    # Cloudflare Tunnel connector — public ingress
 ├── tailscale/     # Tailscale sidecar — tailnet ingress
 ├── vllm/          # vLLM inference server (HF safetensors)
@@ -55,8 +54,7 @@ Each stack has its own `README.md` — start there for deploy / configure / upgr
 
 | Stack | Role | URL on LAN |
 |---|---|---|
-| [`traefik/`](traefik/) | HTTPS reverse proxy (primary), docker-label-driven, mints its own internal CA | publishes `:80`/`:443` |
-| [`caddy/`](caddy/) | HTTPS reverse proxy (backup), Caddyfile-driven, mints its own internal CA | publishes `:80`/`:443` (pick caddy or traefik, not both) |
+| [`traefik/`](traefik/) | HTTPS reverse proxy, docker-label-driven, mints its own internal CA | publishes `:80`/`:443` |
 | [`cloudflare/`](cloudflare/) | Cloudflare Tunnel connector — outbound-only public ingress | configurable per-hostname in the CF dashboard |
 | [`tailscale/`](tailscale/) | Tailscale sidecar — tailnet-only ingress over WireGuard, optional Serve overlay fronts `traefik` | `https://spark-1822.<tailnet>.ts.net` |
 | [`vllm/`](vllm/) | vLLM inference server (HF safetensors), tool-calling enabled (`qwen3_xml`) | `https://vllm.spark-1822.local` |
@@ -86,7 +84,7 @@ On a fresh host, in order:
    cd /opt/mdns && make install
    ```
 
-2. **Bring up the primary proxy** — this also creates the shared `traefik` Docker network everything else joins:
+2. **Bring up the reverse proxy** — this also creates the shared `traefik` Docker network everything else joins:
 
    ```bash
    cd /opt/traefik
@@ -146,14 +144,12 @@ After the pull, apply the change in the relevant stack (each stack's README has 
 
 - **Inference stacks** (`vllm/`, `llama-cpp/`) — `cd /opt/<stack> && make up ENV=<variant>` to (re)start with a variant.
 - **Traefik** — routing changes via Docker labels or `dynamic/*.yml` files are hot-reloaded; `docker compose restart traefik` only if `traefik.yml` itself changed.
-- **Caddy** — `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile` for a hot reload after editing a `Caddyfile.d/*.caddyfile`.
 - **Other stacks** — `cd /opt/<name> && docker compose up -d`.
 
 Host-local files outside git stay put across pulls — each stack's `.env` (secrets), inference `envs/*.env` variants, TLS material (`*.crt`/`*.key`), and `*.bak` backups are all gitignored.
 
 ## Conventions
 
-- **One reverse proxy at a time.** Traefik and Caddy both bind `:80`/`:443` — pick one. The other stack's compose files coexist on disk so switching is `docker compose down` + `docker compose up -d`. Services define `traefik.*` labels *and* sit in Caddy's `Caddyfile.d/`, so the same compose runs under either proxy.
 - **Image tags pinned** to specific versions in `.env` files (single source of truth, validated by CI) — never `:latest`. Pin format depends on what the registry publishes: a plain immutable tag (`v2.11`, `v0.20.2`) when available; the digest of a multi-arch manifest list when a project only publishes the arm64 build under a floating tag (e.g. `ggml-org/llama.cpp`'s `server-cuda`, where the per-build tags are amd64-only).
 - **Inference config split** by scope. `<stack>/.env` carries host-wide values (image pin, HF cache path, HF token, default knobs); `<stack>/envs/<name>.env` carries just the model selection plus per-variant overrides. `make up ENV=<name>` chains both via `docker compose --env-file .env --env-file envs/<name>.env up -d`. Both files are gitignored — the templates live next to them as `.env.example`.
 - **Loopback ports on inference stacks.** `vllm/` and `llama-cpp/` additionally bind their API to `127.0.0.1` on the host for direct curl / benchmarking — LAN traffic still flows through the proxy.

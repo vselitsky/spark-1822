@@ -40,10 +40,9 @@ services:
 
 networks:
   # The shared front-end network. This stack OWNS the network — bringing
-  # traefik up creates it; other stacks (caddy, vllm, llama-cpp, ...)
-  # reference it as `external: true` and join. Traefik and Caddy can't
-  # both bind :80 / :443, so start one or the other — but they both
-  # attach to the same network so backends are reachable either way.
+  # traefik up creates it; other stacks (vllm, llama-cpp, open-webui, ...)
+  # reference it as `external: true` and join so traefik can reach them
+  # by container name.
   traefik:
     name: traefik
     attachable: true

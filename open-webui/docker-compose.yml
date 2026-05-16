@@ -7,9 +7,8 @@ services:
     restart: unless-stopped
     networks:
       - traefik
-    # Traefik docker-provider labels. Inert when Caddy is the active
-    # proxy (Caddy reads Caddyfile.d, not labels). When Traefik is up,
-    # they wire ollama:11434 to https://ollama.spark-1822.local.
+    # Traefik docker-provider labels. Wire ollama:11434 to
+    # https://ollama.<any-spark-host>.<any-domain>.
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
@@ -52,9 +51,8 @@ services:
         condition: service_healthy
     networks:
       - traefik
-    # Traefik docker-provider labels. Inert when Caddy is the active
-    # proxy (Caddy reads Caddyfile.d, not labels). When Traefik is up,
-    # they wire open-webui:8080 to https://open-webui.spark-1822.local.
+    # Traefik docker-provider labels. Wire open-webui:8080 to
+    # https://open-webui.<any-spark-host>.<any-domain>.
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
@@ -87,8 +85,8 @@ services:
         max-file: "3"
 
 networks:
-  # Single network shared with the active proxy (traefik or caddy) and
-  # every other stack — open-webui resolves `ollama` by name over it.
+  # Single network shared with traefik and every other stack —
+  # open-webui resolves `ollama` by name over it.
   traefik:
     external: true
     name: traefik

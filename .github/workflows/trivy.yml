@@ -23,7 +23,6 @@ jobs:
     outputs:
       ollama_tag: ${{ steps.tags.outputs.ollama_tag }}
       open_webui_tag: ${{ steps.tags.outputs.open_webui_tag }}
-      caddy_tag: ${{ steps.tags.outputs.caddy_tag }}
       netdata_tag: ${{ steps.tags.outputs.netdata_tag }}
       llamacpp_tag: ${{ steps.tags.outputs.llamacpp_tag }}
       vllm_tag: ${{ steps.tags.outputs.vllm_tag }}
@@ -52,7 +51,6 @@ jobs:
           }
           ollama_tag=$(extract open-webui/.env.example OLLAMA_TAG)
           open_webui_tag=$(extract open-webui/.env.example OPEN_WEBUI_TAG)
-          caddy_tag=$(extract caddy/.env.example CADDY_TAG)
           netdata_tag=$(extract netdata/.env.example NETDATA_TAG)
           llamacpp_tag=$(extract llama-cpp/.env.example LLAMACPP_TAG)
           vllm_tag=$(extract vllm/.env.example VLLM_TAG)
@@ -61,7 +59,6 @@ jobs:
           tailscale_tag=$(extract tailscale/.env.example TAILSCALE_TAG)
           echo "ollama_tag=${ollama_tag}" >> "$GITHUB_OUTPUT"
           echo "open_webui_tag=${open_webui_tag}" >> "$GITHUB_OUTPUT"
-          echo "caddy_tag=${caddy_tag}" >> "$GITHUB_OUTPUT"
           echo "netdata_tag=${netdata_tag}" >> "$GITHUB_OUTPUT"
           echo "llamacpp_tag=${llamacpp_tag}" >> "$GITHUB_OUTPUT"
           echo "vllm_tag=${vllm_tag}" >> "$GITHUB_OUTPUT"
@@ -84,8 +81,6 @@ jobs:
             image: ollama/ollama:${{ needs.extract-tags.outputs.ollama_tag }}
           - name: open-webui
             image: ghcr.io/open-webui/open-webui:${{ needs.extract-tags.outputs.open_webui_tag }}
-          - name: caddy
-            image: caddy:${{ needs.extract-tags.outputs.caddy_tag }}
           - name: netdata
             image: netdata/netdata:${{ needs.extract-tags.outputs.netdata_tag }}
           - name: llama-cpp

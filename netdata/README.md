@@ -1,10 +1,10 @@
 # netdata
 
-Real-time observability agent for the host — CPU, memory, disks, network, every Docker container, plus systemd units and a long list of auto-detected applications. UI is fronted by Caddy at `https://netdata.${CADDY_DOMAIN}`.
+Real-time observability agent for the host — CPU, memory, disks, network, every Docker container, plus systemd units and a long list of auto-detected applications. UI is fronted by Traefik at `https://netdata.spark-1822.local`.
 
 ## Topology
 
-Netdata runs with `network_mode: host` and `pid: host` so it has full visibility into the host's processes, namespaces, and network interfaces. It listens on `0.0.0.0:19999` directly and is also reachable via HTTPS through Caddy. No authentication: the dashboard is read-only telemetry on a trusted LAN, and Netdata itself has no built-in local auth. If you need auth, claim the agent in [Netdata Cloud](https://www.netdata.cloud/) (free, supports SSO/MFA) or front it with an OAuth proxy.
+Netdata runs with `network_mode: host` and `pid: host` so it has full visibility into the host's processes, namespaces, and network interfaces. It listens on `0.0.0.0:19999` directly and is also reachable via HTTPS through Traefik (route defined in `traefik/dynamic/services.yml` since `network_mode: host` makes the docker provider unable to attach a Docker network endpoint). No authentication: the dashboard is read-only telemetry on a trusted LAN, and Netdata itself has no built-in local auth. If you need auth, claim the agent in [Netdata Cloud](https://www.netdata.cloud/) (free, supports SSO/MFA) or front it with an OAuth proxy.
 
 ## Files
 
@@ -34,7 +34,7 @@ docker compose ps
 curl -fsS http://127.0.0.1:19999/api/v1/info | jq .version
 ```
 
-Then browse to `https://netdata.${CADDY_DOMAIN}`.
+Then browse to `https://netdata.spark-1822.local`.
 
 ## What it monitors out of the box
 

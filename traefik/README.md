@@ -1,12 +1,10 @@
 # traefik
 
-HTTPS reverse proxy — **primary** front-facing entry point on this host. [`caddy/`](../caddy/) is the backup. Caddy and Traefik can't run at the same time (both want host ports `:80` / `:443`); start one or the other.
+HTTPS reverse proxy — front-facing entry point on this host. Publishes `:80` / `:443` and routes by Host header to whichever backend serves each subdomain.
 
 ## How routing works
 
 Each app's `docker-compose.yml` carries `traefik.*` labels (router `rule`, `entryPoints`, `tls`, `loadbalancer.server.port`). Traefik's **docker provider** discovers them via the docker socket and wires up routers + services automatically — no central config file to edit when you add a new app. Anything that can't be label-driven (host-network containers like `netdata`; Traefik's own dashboard) lives in `dynamic/services.yml` and the **file provider** picks it up.
-
-Caddy reads `Caddyfile.d/*.caddyfile`, not labels — so the same compose files work under either proxy. Switching is a `docker compose down` + `docker compose up -d` away.
 
 ## Files
 
@@ -45,7 +43,7 @@ Re-run `make wildcard-cert` to renew the leaf (override the validity with `CERT_
 
 ### Trust the root CA
 
-Every client (your laptop, phone, container that talks back to this host) needs `certs/traefik-root.crt` in its trust store. Otherwise browsers warn and curl wants `-k`. Same shape as Caddy's table:
+Every client (your laptop, phone, container that talks back to this host) needs `certs/traefik-root.crt` in its trust store. Otherwise browsers warn and curl wants `-k`. Per-OS install steps:
 
 | Platform | Command / steps |
 |---|---|
@@ -72,23 +70,9 @@ cd /opt/traefik && docker compose up -d
 docker compose ps
 ```
 
-To switch over from Caddy (if it's currently the active proxy):
-
-```bash
-docker compose -f /opt/caddy/docker-compose.yml down
-cd /opt/traefik && docker compose up -d
-```
-
-And back:
-
-```bash
-docker compose -f /opt/traefik/docker-compose.yml down
-cd /opt/caddy && docker compose up -d
-```
-
 ## What gets routed
 
-All hosts use the wildcard cert; routes mirror Caddy's:
+All hosts use the wildcard cert:
 
 | Host | Upstream |
 |---|---|
@@ -175,6 +159,5 @@ docker volume rm traefik-certs 2>/dev/null || true
 ## See also
 
 - Top-level [README](../README.md)
-- [`caddy/`](../caddy/) — sibling reverse-proxy stack (backup)
 - [`mdns/`](../mdns/) — host-side mDNS aliases
 - Traefik docs: <https://doc.traefik.io/traefik/>

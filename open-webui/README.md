@@ -1,8 +1,8 @@
 # open-webui
 
-Self-hosted [Open WebUI](https://github.com/open-webui/open-webui) backed by [Ollama](https://github.com/ollama/ollama). Two-container stack — `ollama` (GPU) and `open-webui` (UI). Both share the single `traefik` Docker network; open-webui resolves `ollama` by name over it. External access goes through the active reverse proxy ([traefik](../traefik/) primary, [caddy](../caddy/) backup).
+Self-hosted [Open WebUI](https://github.com/open-webui/open-webui) backed by [Ollama](https://github.com/ollama/ollama). Two-container stack — `ollama` (GPU) and `open-webui` (UI). Both share the single `traefik` Docker network; open-webui resolves `ollama` by name over it. External access goes through [Traefik](../traefik/).
 
-Adapted from NVIDIA's official playbook: <https://build.nvidia.com/spark/open-webui/instructions>. Diverges in four ways: services are split (instead of the bundled `:ollama` image), images are version-pinned via `.env`, secrets live in `.env`, and the UI is fronted by Caddy on HTTPS instead of being published directly on `:8080`.
+Adapted from NVIDIA's official playbook: <https://build.nvidia.com/spark/open-webui/instructions>. Diverges in four ways: services are split (instead of the bundled `:ollama` image), images are version-pinned via `.env`, secrets live in `.env`, and the UI is fronted by Traefik on HTTPS instead of being published directly on `:8080`.
 
 ## Files
 
@@ -30,7 +30,7 @@ cp .env.example .env
 
 Prereqs:
 
-- [Traefik](../traefik/) (primary) — or [Caddy](../caddy/) (backup) — must be running; whichever is up owns the active proxy on `:80`/`:443`. Either way, the shared `traefik` Docker network must exist (defined by the `traefik/` stack; this stack joins it as external).
+- [Traefik](../traefik/) must be running — it owns `:80`/`:443` and the shared `traefik` Docker network that this stack joins as external.
 - The two persistent volumes — `open-webui` (WebUI data) and `open-webui-ollama` (Ollama blob store) — must exist. They're declared `external: true` in the compose so `docker compose down -v` never destroys them. First-time deploy:
 
   ```bash
@@ -45,9 +45,9 @@ docker compose up -d
 docker compose ps
 ```
 
-Open WebUI is then reachable at `https://open-webui.${CADDY_DOMAIN}`. The first user to register becomes admin; after that, set `ENABLE_SIGNUP=false` in `.env` and re-run `docker compose up -d` to lock it down.
+Open WebUI is then reachable at `https://open-webui.spark-1822.local` (LAN; also at the tailnet hostname if `tailscale/` is up, or any Cloudflare Tunnel public hostname pointed at it). The first user to register becomes admin; after that, set `ENABLE_SIGNUP=false` in `.env` and re-run `docker compose up -d` to lock it down.
 
-The Ollama API is also exposed directly via Caddy at `https://ollama.${CADDY_DOMAIN}` so other tools (Aider, Continue, LiteLLM, the `ollama` CLI with `OLLAMA_HOST`, …) can use it without going through the WebUI:
+The Ollama API is also exposed directly via Traefik at `https://ollama.spark-1822.local` so other tools (Aider, Continue, LiteLLM, the `ollama` CLI with `OLLAMA_HOST`, …) can use it without going through the WebUI:
 
 ```bash
 curl -k https://ollama.spark-1822.local/api/version
@@ -92,6 +92,6 @@ docker volume rm open-webui open-webui-ollama   # destroys data and models
 ## See also
 
 - Top-level [README](../README.md)
-- [`caddy/`](../caddy/) — TLS-terminating reverse proxy in front of this UI
+- [`traefik/`](../traefik/) — TLS-terminating reverse proxy in front of this UI
 - Open WebUI docs: <https://docs.openwebui.com/>
 - Ollama docs: <https://github.com/ollama/ollama/blob/main/docs/README.md>

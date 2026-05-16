@@ -1,6 +1,6 @@
 # llama-cpp
 
-[llama.cpp](https://github.com/ggml-org/llama.cpp) inference server, GPU-accelerated on the GB10 via CUDA. Serves an [OpenAI-compatible API](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) and a small web UI at `https://llama.${CADDY_DOMAIN}` (fronted by [`caddy/`](../caddy/)).
+[llama.cpp](https://github.com/ggml-org/llama.cpp) inference server, GPU-accelerated on the GB10 via CUDA. Serves an [OpenAI-compatible API](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) and a small web UI at `https://llama.spark-1822.local` (fronted by [`traefik/`](../traefik/); the rule accepts any `llama.spark*.<domain>`, so the same backend also answers on the tailnet or any Cloudflare Tunnel public hostname).
 
 Set up as the workaround for Ollama not being able to pull `gpt-oss-safeguard:120b` (upstream issue: ollama/ollama#16121).
 
@@ -14,7 +14,7 @@ Set up as the workaround for Ollama not being able to pull `gpt-oss-safeguard:12
 
 ## Topology
 
-`llama-cpp` runs as a single container on the shared `traefik` Docker network (defined by the `traefik/` stack; Caddy joins the same network as backup). Whichever proxy is up reaches the container over that network for external traffic. The container also publishes its API on the host's loopback interface at `127.0.0.1:8080` for direct host-side curl/benchmarks — not reachable from the LAN. Set `HOST_PORT=<n>` in the variant file if 8080 is taken.
+`llama-cpp` runs as a single container on the shared `traefik` Docker network (defined by the `traefik/` stack). Traefik reaches the container over that network for external traffic. The container also publishes its API on the host's loopback interface at `127.0.0.1:8080` for direct host-side curl/benchmarks — not reachable from the LAN. Set `HOST_PORT=<n>` in the variant file if 8080 is taken.
 
 ### GPU exclusivity
 
@@ -91,7 +91,7 @@ Set `LLAMACPP_TAG=server-cuda@<that-digest>` in `.env`. Browse builds at <https:
 
 ## Deploy
 
-Prereq: a proxy stack (`traefik/` primary, or `caddy/` backup) running on `:80`/`:443`. The shared `traefik` Docker network must exist (owned by `traefik/`).
+Prereq: `traefik/` running on `:80`/`:443`. The shared `traefik` Docker network must exist (owned by `traefik/`).
 
 ```bash
 make list                                  # show available variants
@@ -105,7 +105,7 @@ Equivalent without Make:
 docker compose --env-file envs/<variant>.env up -d
 ```
 
-Once healthy, the server is at `https://llama.${CADDY_DOMAIN}`:
+Once healthy, the server is at `https://llama.spark-1822.local`:
 
 - Web UI — open in browser.
 - OpenAI-compatible API:
@@ -179,6 +179,6 @@ docker volume rm llama-cpp-cache   # destroys cached model downloads
 ## See also
 
 - Top-level [README](../README.md)
-- [`caddy/`](../caddy/) — reverse proxy in front of this server
+- [`traefik/`](../traefik/) — reverse proxy in front of this server
 - llama.cpp server: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>
 - Compute capability 12.1 on GB10 is supported by the upstream image — confirmed with `ggml_cuda_init: found 1 CUDA devices`.

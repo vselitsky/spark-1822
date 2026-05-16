@@ -43,7 +43,7 @@ ca-cert:  ## Mint Traefik's own internal root CA. Long-lived; install certs/trae
 	@openssl x509 -in certs/traefik-root.crt -noout -subject -issuer -dates | sed 's/^/  /'
 	@echo
 	@echo "  Install certs/traefik-root.crt on each client that needs to trust Traefik."
-	@echo "  Per-OS steps: see traefik/README.md (mirrors the caddy-root.crt install table)."
+	@echo "  Per-OS steps: see traefik/README.md."
 
 wildcard-cert:  ## Mint the wildcard leaf cert signed by Traefik's root. Re-run to renew.
 	@if [[ ! -e certs/traefik-root.crt || ! -e certs/traefik-root.key ]]; then \
