@@ -13,7 +13,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.ollama.rule=Host(`ollama.spark-1822.local`) || Host(`spark-1822.cuscus-macaroni.ts.net`)"
+      - "traefik.http.routers.ollama.rule=HostRegexp(`ollama.spark{x:.+}`) || HostRegexp(`spark{x:.+}`)"
       - "traefik.http.routers.ollama.entryPoints=websecure"
       - "traefik.http.routers.ollama.tls=true"
       - "traefik.http.services.ollama.loadbalancer.server.port=11434"
@@ -58,7 +58,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.open-webui.rule=Host(`open-webui.spark-1822.local`) || Host(`spark-1822.cuscus-macaroni.ts.net`)"
+      - "traefik.http.routers.open-webui.rule=HostRegexp(`open-webui.spark{x:.+}`) || HostRegexp(`spark{x:.+}`)"
       - "traefik.http.routers.open-webui.entryPoints=websecure"
       - "traefik.http.routers.open-webui.tls=true"
       - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
