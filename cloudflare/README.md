@@ -39,7 +39,7 @@ In the tunnel's **Public Hostnames** tab, add one route per service to expose. T
 | `webui.example.com` | `http://traefik:80` | `open-webui.spark-1822.local` |
 | `ollama.example.com` | `http://traefik:80` | `ollama.spark-1822.local` |
 
-The HTTP Host Header override is what makes Traefik's `HostRegexp(`<svc>.spark{x:.+}`)` router match. Without it, Traefik sees `Host: vllm.example.com` and falls through (no router matches that). With it, Traefik sees `Host: vllm.spark-1822.local` and routes to the right backend. Any `<svc>.spark*.<domain>` value works for the override — the rule is no longer pinned to `.spark-1822.local`.
+The HTTP Host Header override is what makes Traefik's `HostRegexp(`<svc>.{x:.+}`)` router match. Without it, Traefik sees `Host: vllm.example.com` — which *does* match the relaxed `vllm.{x:.+}` rule and routes correctly, so the override is now optional. Set it explicitly anyway (e.g. `vllm.spark-1822.local`) when you want predictable internal logging or when you'd rather decouple the public hostname from what Traefik sees.
 
 (For `https://traefik:443` with Traefik's self-signed wildcard, also set Origin Request → **TLS** → "No TLS Verify" or distribute Traefik's root CA via Cloudflare Access — most setups stick with `http://` since the tunnel itself is TLS-encrypted end-to-end with Cloudflare's edge.)
 

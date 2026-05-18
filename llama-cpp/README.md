@@ -1,6 +1,6 @@
 # llama-cpp
 
-[llama.cpp](https://github.com/ggml-org/llama.cpp) inference server, GPU-accelerated on the GB10 via CUDA. Serves an [OpenAI-compatible API](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) and a small web UI at `https://llama.spark-1822.local` (fronted by [`traefik/`](../traefik/); the rule accepts any `llama.spark*.<domain>`, so the same backend also answers on the tailnet or any Cloudflare Tunnel public hostname).
+[llama.cpp](https://github.com/ggml-org/llama.cpp) inference server, GPU-accelerated on the GB10 via CUDA. Serves an [OpenAI-compatible API](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) and a small web UI at `https://llama.spark-1822.local` (fronted by [`traefik/`](../traefik/); the router matches any `llama.<domain>`, so the same backend also answers on `llama.<tailnet>.ts.net` if the matching VIP service is set up — see [`tailscale/README.md`](../tailscale/README.md) — and on any Cloudflare Tunnel public hostname).
 
 Set up as the workaround for Ollama not being able to pull `gpt-oss-safeguard:120b` (upstream issue: ollama/ollama#16121).
 

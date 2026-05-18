@@ -45,7 +45,7 @@ docker compose up -d
 docker compose ps
 ```
 
-Open WebUI is then reachable at `https://open-webui.spark-1822.local` (LAN; also at the tailnet hostname if `tailscale/` is up, or any Cloudflare Tunnel public hostname pointed at it). The first user to register becomes admin; after that, set `ENABLE_SIGNUP=false` in `.env` and re-run `docker compose up -d` to lock it down.
+Open WebUI is then reachable at `https://open-webui.spark-1822.local` (LAN; also at `https://open-webui.<tailnet>.ts.net` if the `svc:open-webui` VIP service is set up — see [`tailscale/README.md`](../tailscale/README.md) — or any Cloudflare Tunnel public hostname pointed at it). The first user to register becomes admin; after that, set `ENABLE_SIGNUP=false` in `.env` and re-run `docker compose up -d` to lock it down.
 
 The Ollama API is also exposed directly via Traefik at `https://ollama.spark-1822.local` so other tools (Aider, Continue, LiteLLM, the `ollama` CLI with `OLLAMA_HOST`, …) can use it without going through the WebUI:
 

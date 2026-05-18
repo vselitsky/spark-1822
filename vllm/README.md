@@ -1,6 +1,6 @@
 # vllm
 
-[vLLM](https://github.com/vllm-project/vllm) inference server. Serves an [OpenAI-compatible API](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html) at `https://vllm.spark-1822.local` (fronted by [`traefik/`](../traefik/); the rule accepts any `vllm.spark*.<domain>`, so the same backend also answers on the tailnet or any Cloudflare Tunnel public hostname).
+[vLLM](https://github.com/vllm-project/vllm) inference server. Serves an [OpenAI-compatible API](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html) at `https://vllm.spark-1822.local` (fronted by [`traefik/`](../traefik/); the router matches any `vllm.<domain>`, so the same backend also answers on `vllm.<tailnet>.ts.net` if the matching VIP service is set up — see [`tailscale/README.md`](../tailscale/README.md) — and on any Cloudflare Tunnel public hostname).
 
 vLLM complements [`llama-cpp/`](../llama-cpp/): use llama.cpp for GGUF files (smaller, CPU-friendly quantizations), vLLM for HF-native models (safetensors) and high-throughput serving with continuous batching + PagedAttention.
 

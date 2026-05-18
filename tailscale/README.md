@@ -70,16 +70,14 @@ tailnet client  ──(https on :443)──>  tailscale  ──(https-insecure)�
 
 ### Host-header routing — applied
 
-Tailscale Serve forwards requests with the **original** Host header. Each Traefik router uses a single `HostRegexp` matcher pinned to its per-service subdomain — `<svc>.spark*.<domain>` — which accepts both the LAN form (`vllm.spark-1822.local`) and any per-service tailnet form a [Tailscale HTTPS subdomain](https://tailscale.com/kb/1153/enabling-https) can present (`vllm.spark-1822.<tailnet>.ts.net`).
+Each Traefik router uses a single `HostRegexp` matcher pinned to its per-service subdomain — `<svc>.{x:.+}` — which accepts the LAN form (`vllm.spark-1822.local`), the per-service tailnet form once you set up per-backend VIP services below (`vllm.<tailnet>.ts.net`), and any other `<svc>.<domain>` that gets pointed at Traefik.
 
 ```yaml
 # example, open-webui/docker-compose.yml
-- "traefik.http.routers.open-webui.rule=HostRegexp(`open-webui.spark{x:.+}`)"
+- "traefik.http.routers.open-webui.rule=HostRegexp(`open-webui.{x:.+}`)"
 ```
 
 Six routers, one per service — `ollama`, `open-webui`, `vllm`, `llama` (label-based in each app's compose), plus `netdata` and `traefik` (file-based in `traefik/dynamic/services.yml`).
-
-**Bare tailnet host → Traefik dashboard.** A request whose Host header is `spark-1822.<tailnet>.ts.net` (the form Tailscale Serve forwards by default — Tailscale Serve only knows about the node's own MagicDNS hostname) lands on the **Traefik dashboard**. The dashboard router in `traefik/dynamic/services.yml` is the only one that carries a second `HostRegexp(`spark{x:.+}`)` matcher; every other router stays pinned to its own `<svc>.spark*` subdomain. So `https://spark-1822.<tailnet>.ts.net/` opens the dashboard, and the rest of the backends (`vllm`, `llama`, `ollama`, `open-webui`, `netdata`) are LAN-only — Tailscale Serve doesn't support per-service hostnames on a single node, and we chose not to set up port-based dispatch or run one tailscale container per backend.
 
 ### Per-backend VIP Services
 
