@@ -7,19 +7,20 @@ http:
     # netdata runs in network_mode: host — no container endpoint for the
     # docker provider to attach to. Route to host.docker.internal:19999.
     netdata:
-      rule: "HostRegexp(`netdata.spark{x:.+}`)"
+      rule: "HostRegexp(`netdata.{x:.+}`)"
       entryPoints: [websecure]
       service: netdata
       tls: {}
 
     # Traefik's own dashboard + API, fronted by the proxy itself.
     # The second matcher (`spark{x:.+}` — anything starting with `spark`)
-    # is what catches the bare tailnet Host header Tailscale Serve forwards
-    # (e.g. `spark-1822.<tailnet>.ts.net`). Lets `https://<node>.<tailnet>.ts.net/`
-    # land on the dashboard. Only the dashboard router carries this fallback;
-    # every other router stays pinned to its `<svc>.spark*` subdomain.
+    # catches the bare tailnet Host header forwarded by the legacy `svc:spark`
+    # VIP service (`spark.<tailnet>.ts.net`) so that still lands on the
+    # dashboard. Once `svc:spark` is retired in favour of per-backend VIPs
+    # (`svc:traefik` reaches the dashboard directly via `traefik.<tailnet>.ts.net`),
+    # the fallback can be dropped.
     traefik:
-      rule: "HostRegexp(`traefik.spark{x:.+}`) || HostRegexp(`spark{x:.+}`)"
+      rule: "HostRegexp(`traefik.{x:.+}`) || HostRegexp(`spark{x:.+}`)"
       entryPoints: [websecure]
       service: api@internal
       tls: {}

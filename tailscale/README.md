@@ -81,11 +81,22 @@ Six routers, one per service — `ollama`, `open-webui`, `vllm`, `llama` (label-
 
 **Bare tailnet host → Traefik dashboard.** A request whose Host header is `spark-1822.<tailnet>.ts.net` (the form Tailscale Serve forwards by default — Tailscale Serve only knows about the node's own MagicDNS hostname) lands on the **Traefik dashboard**. The dashboard router in `traefik/dynamic/services.yml` is the only one that carries a second `HostRegexp(`spark{x:.+}`)` matcher; every other router stays pinned to its own `<svc>.spark*` subdomain. So `https://spark-1822.<tailnet>.ts.net/` opens the dashboard, and the rest of the backends (`vllm`, `llama`, `ollama`, `open-webui`, `netdata`) are LAN-only — Tailscale Serve doesn't support per-service hostnames on a single node, and we chose not to set up port-based dispatch or run one tailscale container per backend.
 
-### VIP Service (`svc:spark`)
+### Per-backend VIP Services
 
-A Tailscale [VIP Service](https://tailscale.com/kb/1417/services) is a separate tailnet entity from the node — it has its own MagicDNS name (e.g. `spark.<tailnet>.ts.net`) and its own cert. Nodes opt in to host a service. We use `svc:spark` as a secondary entry point that, like the node hostname, lands on Traefik.
+A Tailscale [VIP Service](https://tailscale.com/kb/1417/services) is a separate tailnet entity from the node — it has its own MagicDNS name (e.g. `vllm.<tailnet>.ts.net`) and its own cert. One service per backend gives tailnet clients a per-service URL without running multiple Tailscale nodes (Tailscale doesn't support wildcard subdomains under a node's MagicDNS name, so this is the canonical multi-name pattern).
 
-Services config lives in [`services.json`](services.json) (not `serve.json` — different file, different schema; see [Tailscale Services configuration file](https://tailscale.com/kb/1589/tailscale-services-configuration-file)). Because we apply it with `--service=svc:spark`, the file uses the **single-service** form (`ServiceDetailsFile`) — flat `version` + `endpoints`, no outer `services` wrapper:
+Six services map to the six Traefik backends:
+
+| Service     | DNS                              | Lands on              |
+|-------------|----------------------------------|-----------------------|
+| `svc:traefik`     | `traefik.<tailnet>.ts.net`       | Traefik dashboard     |
+| `svc:vllm`        | `vllm.<tailnet>.ts.net`          | vLLM                  |
+| `svc:llama`       | `llama.<tailnet>.ts.net`         | llama.cpp             |
+| `svc:ollama`      | `ollama.<tailnet>.ts.net`        | Ollama                |
+| `svc:open-webui`  | `open-webui.<tailnet>.ts.net`    | Open WebUI            |
+| `svc:netdata`     | `netdata.<tailnet>.ts.net`       | Netdata               |
+
+All six share a single [`services.json`](services.json) — they're indistinguishable on the wire (each just proxies to the same `traefik` container, which routes by Host header). The file uses the **single-service** form (`ServiceDetailsFile` from `ipn/conffile/serveconf.go`), applied per service with `--service=svc:<name>`:
 
 ```json
 {
@@ -99,23 +110,30 @@ Services config lives in [`services.json`](services.json) (not `serve.json` — 
 
 > The scheme is `https+insecure://` (plus, not hyphen) — different from the `https-insecure://` accepted in the Proxy field of `serve.json`. The two config surfaces grew up separately; the Services file matches the `ServiceProtocol` constants in `ipn/conffile/serveconf.go`.
 
-Two steps to make the node advertise it (state lives in the `tailscale-state` docker volume — survives restarts; not in the committed compose because `svc:spark` is tailnet-specific):
+**Setup is two phases.** Phase one (one-time, in the admin console): create each service at <https://login.tailscale.com/admin/services> with required ports `tcp/80` + `tcp/443`. Tailscale can't auto-create services from the CLI — they have to exist in the policy before a node can advertise them.
+
+Phase two (on the host): use the `Makefile` to push the config and advertise:
 
 ```bash
-# 1. load the endpoints config
-docker compose cp services.json tailscale:/config/services.json
-docker compose exec tailscale tailscale serve set-config --service=svc:spark /config/services.json
-
-# 2. tell the daemon to advertise the service
-docker compose exec tailscale tailscale serve advertise svc:spark
+cd /opt/tailscale
+make services-apply     # set-config + advertise every service in $(SERVICES)
+make services-status    # show the daemon's view of each service
+make services-clear     # drain + clear all services from this node
 ```
 
-To stop advertising:
+State lives in the `tailscale-state` docker volume — survives restarts. The list of services is `$(SERVICES)` in the Makefile; override with `make services-apply SERVICES="svc:foo svc:bar"` for a subset.
 
-```bash
-docker compose exec tailscale tailscale serve drain svc:spark    # gradually stop accepting new traffic
-docker compose exec tailscale tailscale serve clear svc:spark    # forget the config entirely
-```
+Once all six advertise, Traefik routing accepts both `<svc>.spark-1822.local` (LAN) and `<svc>.<tailnet>.ts.net` (tailnet) on every router — the rules were relaxed from `<svc>.spark{x:.+}` to `<svc>.{x:.+}` to match either form.
+
+### Legacy `svc:spark`
+
+The first VIP service set up here was `svc:spark` — one service proxying everything to Traefik, with a special bare-host fallback on the Traefik dashboard router to catch the no-subdomain Host header. The per-backend setup above supersedes it: hit `traefik.<tailnet>.ts.net` for the dashboard instead.
+
+`svc:spark` still works as long as the dashboard router carries the `|| HostRegexp(`spark{x:.+}`)` fallback in `traefik/dynamic/services.yml`. To retire it:
+
+1. `make services-clear SERVICES="svc:spark"` on the host (drains + clears).
+2. Delete the service in the admin console.
+3. Drop the `|| HostRegexp(`spark{x:.+}`)` half from the `traefik` router in `dynamic/services.yml`.
 
 ## Logs
 
