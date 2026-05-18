@@ -130,7 +130,7 @@ On a fresh host, in order:
    docker compose up -d
    ```
 
-   The node registers as `spark-1822.<tailnet>.ts.net` with a real publicly-trusted MagicDNS cert; Tailscale Serve wires `:443` on the tailnet to `http://traefik:80`. See [`tailscale/README.md`](tailscale/README.md) for the Host-header note — each Traefik router matches its own `<svc>.spark*.<domain>` subdomain only; the bare tailnet hostname 404s and per-service tailnet hostnames (Tailscale HTTPS subdomains) are the way in.
+   The node registers as `spark-1822.<tailnet>.ts.net` with a real publicly-trusted MagicDNS cert; Tailscale Serve wires `:443` on the tailnet to `http://traefik:80`. The bare tailnet URL lands on the **Traefik dashboard** (its router carries an extra `HostRegexp(`spark{x:.+}`)` matcher); other backends are LAN-only since Tailscale Serve only knows the node's MagicDNS hostname. See [`tailscale/README.md`](tailscale/README.md) for details.
 
 ## Deploy workflow
 

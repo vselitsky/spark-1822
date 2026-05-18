@@ -49,20 +49,23 @@ The node appears in the admin console under **Machines**. MagicDNS publishes it 
 ## How it works
 
 ```
-tailnet client  ──(https, MagicDNS cert)──>  tailscale (:443 on tailnet)
-                                                  │
-                                                  │ TS_SERVE_CONFIG → Serve handler
-                                                  ▼
-                                            http://traefik:80   (on the `traefik` docker network)
-                                                  │
-                                                  │ Host header routing
-                                                  ▼
-                                              backend (vllm / open-webui / netdata / ...)
+tailnet client  ──(http  on :80 )──>  tailscale  ──(http  )──>  http://traefik:80
+                                                                       │
+                                                                       │ web entrypoint
+                                                                       │ 308 → https
+                                                                       ▼
+tailnet client  ──(https on :443)──>  tailscale  ──(https-insecure)──> https://traefik:443
+                                                                       │
+                                                                       │ Host header routing
+                                                                       ▼
+                                                                   backend (vllm / open-webui / netdata / ...)
 ```
 
 - The Tailscale daemon runs in userspace mode (no `/dev/net/tun`, no privileged caps) and registers as one node on your tailnet using `TS_AUTHKEY`.
-- [Tailscale Serve](https://tailscale.com/kb/1242/tailscale-serve) is configured via the mounted `serve.json`. The container substitutes `${TS_CERT_DOMAIN}` with the node's MagicDNS hostname at startup, then terminates TLS on `:443` with a real publicly-trusted cert.
-- All decrypted HTTP is forwarded to `http://traefik:80`. Traefik routes by `Host` header to whichever backend matches.
+- [Tailscale Serve](https://tailscale.com/kb/1242/tailscale-serve) is configured via the mounted `serve.json`. The container substitutes `${TS_CERT_DOMAIN}` with the node's MagicDNS hostname at startup, then exposes two listeners:
+  - **`:80` plain HTTP**, proxied to `http://traefik:80`. Traefik's `web` entrypoint then 308-redirects to HTTPS. The redirect's `Location` header preserves the tailnet `Host`, so the client follows back to the `:443` listener below — one extra hop on first request, then HTTPS the rest of the way.
+  - **`:443` HTTPS**, with TLS terminated using the publicly-trusted MagicDNS cert, proxied to `https-insecure://traefik:443`. The `-insecure` modifier skips Traefik's wildcard-cert verification (the inner connection is over the trusted `traefik` Docker network, container-to-container — no external attacker reachable). Traefik's `websecure` entrypoint terminates the inner TLS with its own wildcard and routes by Host header.
+- Why not just proxy `:443` to `http://traefik:80`? Because Traefik would see plain HTTP on its `web` entrypoint and 308-redirect — sending the client back through Tailscale `:443` → http://traefik:80 → 308 again → infinite loop. `https-insecure://traefik:443` lands directly on `websecure` and avoids the redirect entirely.
 - State (node key, machine identity) lives in a named docker volume `tailscale-state`, not under `/opt` — so the host's git working tree stays free of secrets.
 
 ### Host-header routing — applied
@@ -76,7 +79,7 @@ Tailscale Serve forwards requests with the **original** Host header. Each Traefi
 
 Six routers, one per service — `ollama`, `open-webui`, `vllm`, `llama` (label-based in each app's compose), plus `netdata` and `traefik` (file-based in `traefik/dynamic/services.yml`).
 
-**Bare-host caveat.** A request whose Host header is `spark-1822.<tailnet>.ts.net` (no per-service subdomain — the form Tailscale Serve forwards by default) matches **no** router and Traefik returns 404. The earlier setup had a fallback `HostRegexp(`spark{x:.+}`)` on every router that let the bare URL land on whichever service won the rule-length tiebreaker (Open WebUI), but the implicit tiebreaker behaviour was confusing; the fallback was dropped on purpose. To reach a backend over the tailnet, point clients at the per-service hostname — either by setting up Tailscale HTTPS subdomains (one tailnet name per backend) or by serving a different per-service Tailscale Serve config per port.
+**Bare tailnet host → Traefik dashboard.** A request whose Host header is `spark-1822.<tailnet>.ts.net` (the form Tailscale Serve forwards by default — Tailscale Serve only knows about the node's own MagicDNS hostname) lands on the **Traefik dashboard**. The dashboard router in `traefik/dynamic/services.yml` is the only one that carries a second `HostRegexp(`spark{x:.+}`)` matcher; every other router stays pinned to its own `<svc>.spark*` subdomain. So `https://spark-1822.<tailnet>.ts.net/` opens the dashboard, and the rest of the backends (`vllm`, `llama`, `ollama`, `open-webui`, `netdata`) are LAN-only — Tailscale Serve doesn't support per-service hostnames on a single node, and we chose not to set up port-based dispatch or run one tailscale container per backend.
 
 ## Logs
 

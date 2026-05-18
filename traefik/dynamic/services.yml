@@ -13,8 +13,13 @@ http:
       tls: {}
 
     # Traefik's own dashboard + API, fronted by the proxy itself.
+    # The second matcher (`spark{x:.+}` — anything starting with `spark`)
+    # is what catches the bare tailnet Host header Tailscale Serve forwards
+    # (e.g. `spark-1822.<tailnet>.ts.net`). Lets `https://<node>.<tailnet>.ts.net/`
+    # land on the dashboard. Only the dashboard router carries this fallback;
+    # every other router stays pinned to its `<svc>.spark*` subdomain.
     traefik:
-      rule: "HostRegexp(`traefik.spark{x:.+}`)"
+      rule: "HostRegexp(`traefik.spark{x:.+}`) || HostRegexp(`spark{x:.+}`)"
       entryPoints: [websecure]
       service: api@internal
       tls: {}
