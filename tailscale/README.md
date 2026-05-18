@@ -83,15 +83,41 @@ Six routers, one per service — `ollama`, `open-webui`, `vllm`, `llama` (label-
 
 ### VIP Service (`svc:spark`)
 
-`serve.json` additionally carries a `Services.svc:spark` block that mirrors the node's `:80`/`:443` setup. This lets a Tailscale [VIP Service](https://tailscale.com/kb/1417/services) named `svc:spark` (defined in the admin console at **Services → svc:spark**) advertise on this node — clients on the tailnet hit the service's own MagicDNS name (e.g. `https://spark.<tailnet>.ts.net`) and land on Traefik just like via the node's hostname.
+A Tailscale [VIP Service](https://tailscale.com/kb/1417/services) is a separate tailnet entity from the node — it has its own MagicDNS name (e.g. `spark.<tailnet>.ts.net`) and its own cert. Nodes opt in to host a service. We use `svc:spark` as a secondary entry point that, like the node hostname, lands on Traefik.
 
-For the daemon to actually advertise the service, the node needs `AdvertiseServices` set. The list is tailnet-specific and host-local (`svc:spark` only exists in this tailnet), so it lives in daemon prefs rather than the committed compose:
+Services config lives in [`services.json`](services.json) (not `serve.json` — different file, different schema; see [Tailscale Services configuration file](https://tailscale.com/kb/1589/tailscale-services-configuration-file)):
 
-```bash
-docker compose exec tailscale tailscale set --advertise-services=svc:spark
+```json
+{
+  "version": "0.0.1",
+  "services": {
+    "svc:spark": {
+      "endpoints": {
+        "tcp:80":  "http://traefik:80",
+        "tcp:443": "https-insecure://traefik:443"
+      }
+    }
+  }
+}
 ```
 
-State persists in the `tailscale-state` docker volume — survives container restarts. Clear with `--advertise-services=""` when you want to stop advertising.
+Two steps to make the node advertise it (state lives in the `tailscale-state` docker volume — survives restarts; not in the committed compose because `svc:spark` is tailnet-specific):
+
+```bash
+# 1. load the endpoints config
+docker compose cp services.json tailscale:/config/services.json
+docker compose exec tailscale tailscale serve set-config --service=svc:spark /config/services.json
+
+# 2. tell the daemon to advertise the service
+docker compose exec tailscale tailscale serve advertise svc:spark
+```
+
+To stop advertising:
+
+```bash
+docker compose exec tailscale tailscale serve drain svc:spark    # gradually stop accepting new traffic
+docker compose exec tailscale tailscale serve clear svc:spark    # forget the config entirely
+```
 
 ## Logs
 
