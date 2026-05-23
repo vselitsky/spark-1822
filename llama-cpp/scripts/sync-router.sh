@@ -77,15 +77,12 @@ while IFS=$'\t' read -r repo host_path; do
     # Strip GGUF extension, split-part suffix, then dash- or dot-separated quant.
     # HF filenames use both conventions (e.g. `model-Q4_K_M.gguf` vs `model.Q4_K_M.gguf`).
     section=$(echo "$base" \
-        | sed -E 's/\.gguf$//; s/-0*[0-9]+-of-[0-9]+$//; s/-MXFP4.*//; s/\.[QqFf][0-9].*//; s/-Q[0-9].*//; s/-IQ[0-9].*//; s/-F1[6]$//; s/-F32$//' \
+        | sed -E 's/\.gguf$//; s/-0*[0-9]+-of-[0-9]+$//; s/-MXFP4.*//; s/\.[QqFf][0-9].*//; s/-Q[0-9].*//; s/-IQ[0-9].*//; s/-BF[0-9]+$//; s/-F[0-9]+$//' \
         | tr '[:upper:]' '[:lower:]')
 
-    quant=$(echo "$base" | grep -oE '(MXFP4|Q[0-9][_KMS0-9]*|IQ[0-9][_KMS0-9]*|F16|F32)' | head -1 || true)
-    if [[ -n "$quant" ]]; then
-        hf_alias="$repo:$quant"
-    else
-        hf_alias="$repo"
-    fi
+    # The router auto-derives an HF-style ID (`<org>/<repo>:<quant>`) from the
+    # symlink target path, so we don't emit `alias =` ourselves — doing so
+    # produced a duplicate-name error at server startup.
 
     target="$SYMLINK_FARM/$base"
     if [[ -L "$target" && "$(readlink "$target")" == "$container_path" ]]; then
@@ -99,7 +96,7 @@ while IFS=$'\t' read -r repo host_path; do
     # Only the first part of a multi-part split is the load entry point.
     part=$(echo "$base" | sed -nE 's/.*-0*([0-9]+)-of-[0-9]+\.gguf$/\1/p')
     if [[ -z "$part" || "$part" == "1" ]]; then
-        specs+="$section"$'\t'"/models/$base"$'\t'"$hf_alias"$'\n'
+        specs+="$section"$'\t'"/models/$base"$'\n'
     fi
 done < <(list_ggufs)
 
