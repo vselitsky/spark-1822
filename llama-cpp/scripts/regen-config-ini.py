@@ -2,7 +2,7 @@
 """Regenerate config.ini for llama.cpp router mode with managed-fields semantics.
 
 Reads tab-separated GGUF inventory from stdin (one per line):
-    <section-name>\t<container-model-path>\t<hf-alias>
+    <section-name>\t<container-model-path>
 
 Writes:
     <config-path>          active sections (one per current GGUF)
@@ -11,7 +11,7 @@ Writes:
 Managed-fields rules:
     - On each run, hf-sync owns the `model =` line of every active section.
     - All other keys are user-editable and preserved verbatim across runs.
-    - A new section gets default `alias`, `ctx-size`, `n-gpu-layers` from CLI args.
+    - A new section gets default `ctx-size` and `n-gpu-layers` from CLI args.
     - When a GGUF disappears from the input, its section is moved to the
       orphan archive (kept verbatim). If the GGUF later returns, the archived
       section is restored as-is (preserving any user edits) — except `model`,
@@ -63,20 +63,20 @@ def main() -> int:
             print(f"error: parent directory does not exist: {p.parent}", file=sys.stderr)
             return 1
 
-    current: dict[str, tuple[str, str]] = {}
+    current: dict[str, str] = {}
     for lineno, raw in enumerate(sys.stdin, 1):
         line = raw.rstrip("\r\n")
         if not line:
             continue
         parts = line.split("\t")
-        if len(parts) != 3:
+        if len(parts) != 2:
             print(
-                f"stdin line {lineno}: expected 3 tab-separated fields, got {len(parts)}: {line!r}",
+                f"stdin line {lineno}: expected 2 tab-separated fields, got {len(parts)}: {line!r}",
                 file=sys.stderr,
             )
             return 2
-        section, model, alias = parts
-        current[section] = (model, alias)
+        section, model = parts
+        current[section] = model
 
     existing = _load(config_path)
     orphans = _load(orphan_path)
@@ -86,7 +86,7 @@ def main() -> int:
     new_orphans = configparser.ConfigParser()
     new_orphans.optionxform = str
 
-    for section, (model, alias) in current.items():
+    for section, model in current.items():
         if existing.has_section(section):
             new_config[section] = dict(existing.items(section))
             new_config[section]["model"] = model  # managed field
@@ -96,7 +96,6 @@ def main() -> int:
         else:
             new_config[section] = {
                 "model": model,
-                "alias": alias,
                 "ctx-size": ctx_default,
                 "n-gpu-layers": ngl_default,
             }
