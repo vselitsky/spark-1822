@@ -53,19 +53,26 @@ up:  ## Start. With ENV=<name>: classic single-model mode. Without: router mode 
 	    $(COMPOSE) --env-file .env --env-file "envs/$(ENV).env" up -d; \
 	fi
 
-hf-cache:  ## List cached models — GGUFs in llama-cpp-cache vol + every HF repo in HF cache (annotated by format).
+hf-cache:  ## List cached models — GGUFs in llama-cpp-cache vol + every HF repo in HF cache (annotated by format + router visibility).
 	@echo "# in docker volume $(LLAMACPP_CACHE_VOL) — usable by llama-cpp:"
 	@docker run --rm -v $(LLAMACPP_CACHE_VOL):/d alpine sh -c 'ls /d/*.gguf 2>/dev/null' \
 	    | sed 's|.*/||; s|^|  |' || true
 	@echo
 	@echo "# in $(HF_CACHE) — populated by \`hf download\` / vllm; usable by llama-cpp only when GGUF is present:"
-	@shopt -s nullglob; \
+	@farm="$${SYMLINK_FARM_HOST:-/opt/hf/.cache/llama-cpp-models}"; \
+	shopt -s nullglob; \
 	for d in $(HF_CACHE)/hub/models--*/; do \
 	    repo=$$(basename "$$d" | sed 's|^models--||; s|--|/|'); \
 	    gg=$$(find "$$d" -name "*.gguf" 2>/dev/null | wc -l); \
 	    st=$$(find "$$d" -name "*.safetensors" 2>/dev/null | wc -l); \
+	    router_flag=""; \
+	    if [[ $$gg -gt 0 && -d "$$farm" ]]; then \
+	        for fp in $$(find "$$d" -name "*.gguf" 2>/dev/null); do \
+	            if [[ -L "$$farm/$$(basename "$$fp")" ]]; then router_flag=" [router]"; break; fi; \
+	        done; \
+	    fi; \
 	    if [[ $$gg -gt 0 ]]; then \
-	        printf "  %-60s [%d GGUF — llama-cpp can load]\n" "$$repo" "$$gg"; \
+	        printf "  %-60s [%d GGUF — llama-cpp can load]%s\n" "$$repo" "$$gg" "$$router_flag"; \
 	    else \
 	        printf "  %-60s [%d safetensors — vllm only]\n" "$$repo" "$$st"; \
 	    fi; \
@@ -188,3 +195,10 @@ hf-sync:  ## Reconcile envs against this host's GGUF inventory: create new, rest
 	    echo "      \`hf download bartowski/<model>-GGUF\`) or convert locally with"; \
 	    echo "      llama.cpp's convert_hf_to_gguf.py. \`make hf-cache\` shows which."; \
 	fi
+	@echo
+	@echo "# router artifacts — symlink farm + config.ini"
+	@HF_CACHE="$(HF_CACHE)" \
+	    SYMLINK_FARM="$${SYMLINK_FARM_HOST:-/opt/hf/.cache/llama-cpp-models}" \
+	    CTX_DEFAULT="$${CTX_SIZE:-8192}" \
+	    NGL_DEFAULT="$${N_GPU_LAYERS:-999}" \
+	    ./scripts/sync-router.sh
